@@ -1,0 +1,115 @@
+% Margins
+\usepackage[lmargin=.8in,rmargin=1.3in,vmargin=1.5in]{geometry}
+\usepackage{setspace}
+\setstretch{1.4} 
+
+%\usepackage{lmodern} % Get starndard Latex style, also get rid of eurermath in the config
+
+% Theorems and definitions
+\usepackage{amssymb}
+\usepackage{amsthm}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{propo}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{definition}{Definition}
+\newtheorem{proper}{Property}
+\newtheorem{algorithm}{Algorithm}
+\newtheorem{example}{Example}
+\usepackage{thmtools}
+\usepackage{thm-restate}
+\usepackage{boiboites} %boxes
+\newboxedtheorem[boxcolor=gray, background=gray!5, titlebackground=gray!20, titleboxcolor = black, size = .95\textwidth]{i_defi}{Definition}{defcounter}
+
+
+% Counters
+\renewcommand{\labelenumi}{{\color{halfgray}(\alph{enumi})}}
+\renewcommand{\labelenumii}{\color{halfgray}{\roman{enumii}.}}
+\renewcommand{\labelitemi}{{\color{halfgray}-}}%\raisebox{0.3ex}{\tiny$\blacksquare$}}}
+
+\numberwithin{theorem}{chapter}
+\numberwithin{example}{chapter}
+\numberwithin{proper}{chapter}
+\numberwithin{definition}{chapter}
+\numberwithin{algorithm}{chapter}
+\numberwithin{figure}{chapter}
+\numberwithin{table}{chapter}
+
+% Maths
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+\numberwithin{equation}{chapter}
+\allowdisplaybreaks
+
+% Shaded boxes
+\usepackage{framed}
+\newenvironment{remark}[1]{%
+  \definecolor{shadecolor}{gray}{0.9}%
+  \begin{shaded}{\color{unimelb}\noindent\textsc{#1}}\\%
+}{%
+  \end{shaded}%
+}
+
+% Colors
+%\usepackage{minted}
+\definecolor{rulecolor}{rgb}{0.80,0.80,0.80}
+\definecolor{bgcolor}{rgb}{1.0,1.0,1.0}
+\definecolor{unimelb}{RGB}{21,84,156}
+%\newminted{python}{bgcolor=bgcolor}
+
+% Color TOC
+\renewcommand\cftpartfont{\normalfont\color{unimelb}}
+\renewcommand\cftpartpagefont{\normalfont\color{unimelb}}
+
+% Todo
+\newcommand{\todo}[1]{\textcolor{red}{[TODO] #1}}
+
+% TIKZ
+\usepackage{tikz}
+\usetikzlibrary{shapes,backgrounds}
+\usepackage{tkz-kiviat}
+\usetikzlibrary{arrows}
+
+% Landscape tables
+\usepackage{rotating}
+
+% Checkmarks
+\usepackage{pifont}% http://ctan.org/pkg/pifont
+\newcommand{\cmark}{\ding{51}}%
+\newcommand{\xmark}{\ding{55}}%
+
+% Tables
+\usepackage{ltablex}
+\newcolumntype{H}{>{\setbox0=\hbox\bgroup}c<{\egroup}@{}} % to hide columns
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{S}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}\scriptsize}m{#1}}
+\usepackage{multirow}
+\usepackage{array}
+\newcommand{\breaklinecell}[2][l]{%
+  \begin{tabular}[#1]{@{}l@{}}#2\end{tabular}}
+\usepackage{pbox}
+\newcommand{\specialcell}[2][l]{%
+  \begin{tabular}[#1]{@{}l@{}}#2\end{tabular}}
+
+% Graphics
+\usepackage{sidecap}
+\sidecaptionvpos{figure}{c}
+
+% Code
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{clrscode3e_mod}
+
+% Additional
+\usepackage{lscape}
+
+% Footnote without marker
+\newcommand\blfootnote[1]{%
+  \begingroup
+  \renewcommand\thefootnote{}\footnote{#1}%
+  \addtocounter{footnote}{-1}%
+  \endgroup
+}

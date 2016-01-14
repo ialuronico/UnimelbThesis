@@ -1,0 +1,790 @@
+\chapter{Ranking Dependencies in Noisy Data}\label{ch:ranknoise}
+
+\begin{remark}{Outline}
+In this chapter we introduce a dependency measure based on mutual information to \emph{detect} and to \emph{rank} dependencies in noisy data. We identify the gap in the literature of dependency measures based on estimation of mutual information with grinds in the Introduction and Related Work in Section \ref{sec:relric}. In Section \ref{sec:ricdef}, we introduce the dependency measure Randomized Information Coefficient (RIC) and we discuss its main property of low variance in detail in Section \ref{sec:ricvar}. Finally, we extensively test it on detection and ranking of dependency between variables in Section \ref{sec:experimentsTwoVar} and between sets of variables in Section \ref{sec:experimentsSetsVar}.
+\end{remark}
+\blfootnote{In this chapter we present results from the following manuscript: ``\textit{The Randomized Information Coefficient: Ranking Dependencies in Noisy Data}'',
+Simone Romano, Nguyen Xuan Vinh, James Bailey, and Karin Verspoor. Under review in the Machine Learning Journal (MLJ)}
+
+\section{Introduction} 
+
+All the dependency measures $\mathcal{D}(\mathbf{X},\mathbf{Y})$ between two sets of variables $\mathbf{X}$ and $\mathbf{Y}$ discussed in Chapter \ref{ch:background} are estimated on a data set $\mathcal{S}_n$ through their estimator $\hat{\mathcal{D}}(\mathcal{S}_n|\mathbf{X},\mathbf{Y})$. Dependency measures summarize relationships between variables into a single number. Nonetheless, the true value $\mathcal{D}$ cannot be accessed, this can only be inferred through $\hat{\mathcal{D}}$. $\hat{\mathcal{D}}(\mathcal{S}_n|\mathbf{X},\mathbf{Y})$ is a random variable dependent on $\mathcal{S}_n$ which has its own expected value and variance. When differentiating between strong and weak relationships between different variables, multiple realizations of $\hat{\mathcal{D}}$ are compared in practice. In this scenario the variance of $\hat{\mathcal{D}}$ plays an important role: the higher the variance, the lower the chance to correctly \emph{rank} different relationships in terms of strength. Indeed because of the variability of $\hat{\mathcal{D}}$, sometimes weak relationships can obtain higher estimated dependency than stronger relationships. Moreover, the variance of $\hat{\mathcal{D}}$ is also important when testing for independence between variables. More specifically, when testing for independence between $\mathbf{X}$ and $\mathbf{Y}$ on a data set $\mathcal{S}_n$, the estimated $\hat{\mathcal{D}}(\mathcal{S}_n|\mathbf{X},\mathbf{Y})$ is compared to the estimates of $\hat{\mathcal{D}}$ under the assumption of independent $\mathbf{X}$ and $\mathbf{Y}$ \citep{Simon2014}. An estimator $\hat{\mathcal{D}}$ with small variance reduces the chances to obtaining similar estimates under real relationship and under independence.
+
+In the case of mutual information discussed in Section \ref{sec:micont}, the importance of reducing variance while minimizing the impact on the bias is implied by the statements in \cite{Kraskov2004, Margolin2006, Schaffernicht2010}, which can be summarized as: \emph{when comparing dependencies, systematic estimation biases cancel each other out}. Therefore smaller variance for mutual information yields a more accurate ranking of relationships. This is particularly true for the estimators of mutual information based on grids which shows a systematic bias which depends to the number of bins used for the discretization. In this section, we investigate the role of bias and variance of the estimator of mutual information based on grids to compare relationships. Estimators based on grids are indeed very computationally efficient and easy to compute. Nonetheless, they have not had success when extended to compare sets of variables.
+
+
+To quantify the dependency between two sets of numerical variables, we propose a low-variance measure based on information and ensemble theory that can capture many relationship types. Our measure, named the
+Randomized Information Coefficient (RIC), is computed by randomly generating $K$  discretization grids $G_k$ and averaging the Normalized Mutual Information ($\mbox{NMI}$)  \citep{Kvalseth1987} over all the grids as:
+\begin{equation}\label{eq:RICstatistic}
+\mbox{RIC}(\mathbf{X},\mathbf{Y})  \triangleq \frac{1}{K}\sum_{k=1}^{K} \mbox{NMI}\big( (\mathbf{X},\mathbf{Y}) | G_k \big)
+\end{equation}
+Normalization enables us to consider grids with different cardinalities. The normalized mutual information on a grid $G$ is defined as
+\begin{equation}\label{eq:NI}
+\mbox{NMI}\big( (\mathbf{X},\mathbf{Y}) |G \big) \triangleq \frac{\mbox{MI}\big( (\mathbf{X},\mathbf{Y}) |G\big)}{ \max{ \{ H(\mathbf{X}|G),H(\mathbf{Y}|G) \} }}
+\end{equation}
+where MI and $H$ are respectively the mutual information and the entropy function for discrete variables defined on contingency tables from Section \ref{sec:micat}. We choose to normalize by $\max{ \{ H(\mathbf{X}), H(\mathbf{Y}) \} }$ as it is the tightest upper bound that still preserves the metric properties of NMI \citep{Nguyen2010}.
+
+The intuition behind this measure is that on average a random grid can encapsulate the relationship between $\mathbf{X}$ and $\mathbf{Y}$. Both random discretization and ensembles of classifiers have been shown to be effective in machine learning, for example, in random forests \citep{Breiman2001}. Substantial randomization has been shown to be even more effective in reducing the variance of predictions \citep{Geurts2006}. Our aim is to exploit this powerful approach to develop an efficient, effective and easy-to-compute statistic for quantifying dependency between two set variables.
+
+Our contributions in this section are three-fold:
+\begin{itemize}
+\item We propose a low-variance statistic (RIC) based on information and ensemble theory, which is efficient and easy to compute;
+\item Via theoretical analysis and extensive experimental evaluation, we
+link our measure's strong performance on \emph{(i)} discrimination between strong and weak noisy relationships, and \emph{(ii)} ranking of relationships, to
+its low variance estimation of mutual information;
+\item We extensively demonstrate the competitive performance of RIC versus 15 state-of-the-art dependency measures using both simulated and real scenarios.
+\end{itemize}
+
+\section{Related Work} \label{sec:relric}
+
+\begin{table}
+\centering
+\footnotesize
+\begin{tabular}{L{2cm}L{.8cm}L{4.0cm}S{2.7cm}Hp{.5cm}p{1.4cm}p{.8cm}H} %H hidden
+\toprule
+Family & Acr. & Name & { \footnotesize Reference} & Parameters & Sets of vars. & Best Compl. & Worst Compl. & \# Par.\\
+\toprule
+\multirow{5}{*}{ \breaklinecell{ Mutual\\ information\\ estimators } } &
+$I_\text{ew}$ &\breaklinecell{Mutual Information \\ \scriptsize{(Discretization equal width)}} & \citet{Steuer2002} & $D = \lfloor \sqrt{n/5} \rfloor$ & \xmark & \multicolumn{2}{c}{$\mathcal{O}(n^{1.5})$} & 1\\
+&$I_\text{ef}$ & \breaklinecell{Mutual Information \\ \scriptsize{(Discretization equal frequency)}} & \citet{Steuer2002} & $D = \lfloor \sqrt{n/5} \rfloor $& \xmark & \multicolumn{2}{c}{$\mathcal{O}(n^{1.5})$} & 1\\
+&$I_{\text{A}}$  & \breaklinecell{Mutual Information \\ \scriptsize{(Adaptive Partitioning)}} & \citet{Cellucci2005} & - & \xmark & \multicolumn{2}{c}{$\mathcal{O}(n^{1.5})$} & 0\\
+&$I_{\text{mean}}$ & \breaklinecell{ Mutual Information \\ \scriptsize{(Mean Nearest Neighbors)} }& \citet{Faivishevsky2009} & - & \cmark & \multicolumn{2}{c}{$\mathcal{O}(n^{2})$} & 0\\
+&$I_{\text{KDE}}$ & \breaklinecell{ Mutual Information \\ \scriptsize{(Kernel Density Estimation)} }& \citet{Moon1995} &
+%$h = \frac{n+1}{\sqrt{12} n^{1.25}}$\\
+$h = n^{-1/6}$& \cmark & \multicolumn{2}{c}{$\mathcal{O}(n^{2})$} & 1\\
+&$I_{k\text{NN}}$ & \breaklinecell{Mutual Information \\ \scriptsize{(Nearest Neighbors)} }& \citet{Kraskov2004} & $k = 6$ & \cmark & $\mathcal{O}(n^{1.5})$ & $\mathcal{O}(n^{2})$ & 1\\
+\hline
+\multirow{3}{*}{ \pbox{2cm}{Correlation based }} &
+$r^2$ & Squared Pearson's Correlation  & - & - & \xmark & \multicolumn{2}{c}{$\mathcal{O}(n)$} & 0\\
+&ACE & Alternative Conditional Expectation & \citet{Breiman1985} & $\epsilon = 10^{-12}$ & \xmark & \multicolumn{2}{c}{$\mathcal{O}(n)$} & 1\\
+&dCorr & Distance Correlation & \citet{Szekely2009} & - & \cmark & $\mathcal{O}(n \log{n})$ & $\mathcal{O}(n^2)$ & 1\\
+&RDC & Randomized Dependency Coefficient & \citet{Lopez-paz2013} & $k = 20$, $ s = 1/6$ & \cmark & \multicolumn{2}{c}{$\mathcal{O}(n \log{n})$} & 2\\
+\hline
+\multirow{1}{*}{ \pbox{2cm}{Kernel based }} &
+HSIC & Hilbert-Schmidt Independence Criterion & \citet{Gretton2005} & $\gamma^{-1}=$\tiny{med. dist.} & \cmark & \multicolumn{2}{c}{$\mathcal{O}(n^2)$}& 1\\
+\hline
+\multirow{3}{*}{ \pbox{1.6cm}{Information theory based }}&
+MIC & Maximal Information Coefficient & \citet{Reshef2011} & $\alpha = 0.6$ & \xmark & \multicolumn{2}{c}{$\mathcal{O}(2^n)$} & 1\\
+&GMIC & Generalized Mean Information Coefficient & \citet{Luedtke2013} & $p=-1$ & \xmark & \multicolumn{2}{c}{$\mathcal{O}(2^n)$} & 2\\
+&MID & Mutual Information Dimension & \citet{Sugiyama2013} & - & \xmark & $\mathcal{O}(n \log{n})$ & $\mathcal{O}(n^2)$ & 0\\
+&MIC$_e$ & Maximal Information Coefficient & \citet{Reshef2015TIC} &  & \xmark & $\mathcal{O}(n)$ & $\mathcal{O}(n^{2.25})$ & 2\\
+&TIC$_e$ & Total Information Coefficient & \citet{Reshef2015TIC} &  & \xmark & $\mathcal{O}(n)$ & $\mathcal{O}(n^{2.25})$ & 2\\
+\hline
+&RIC & Randomized Information Coefficient & - & $K_r = 20$, $D_{\max} = \lfloor \sqrt{n} \rfloor - 1$ & \cmark & \multicolumn{2}{c}{$\mathcal{O}(n^{1.5})$} & 2\\
+\hline
+\end{tabular}
+\caption{Dependency measures available in literature compared by their applicability to sets of variables and their best and worst case computational complexity.} \label{tbl:measuresHighLevel}
+\end{table}
+
+
+RIC is a dependency measure to compare sets of variables based on normalized mutual information which is efficient and easy to compute. Table \ref{tbl:measuresHighLevel} shows a list of dependency measures currently available in literature. Not all of them is applicable to set of variables and some show high computational complexity with regards to the number of points $n$. Some complexities can be obtained with particular parameter choices or clever implementation techniques. We refer to the respective papers for a detailed analysis. Moreover, recent advances in this area have delivered faster computational techniques for the most recently proposed measures of dependence. For example, the approximated estimator for the population value of MIC can be sped up \citep{Tang2014,Zhang2014}, and the new exact estimator MIC$_e$ provides very competitive computational complexity. Moreover, very recently a new technique for fast computation of distance correlation has been proposed \citep{Huo2014}. 
+
+The estimators of mutual information based on grids exhibit very good computational complexity, are easy to implement, but are not straightforwardly applicable to sets of variables. RIC is based on the estimation of mutual information via grids of different cardinality and it is applicable to sets of variables. Ranking dependencies between variables with mutual information has been shown to be effective for a number of important applications, such as feature selection \citep{Vinh2014} and network inference \citep{Villaverde2013}. Moreover, despite the estimators of mutual information based on kernels, RIC is less sensitive to parameter tuning because it uses many random grids of different cardinality. In our work, the random discretization grids used in RIC can be seen as random projection. Another novel dependency measure based on correlation uses random projections too speed up computations: the Randomized Dependence Coefficient (RDC) discussed in Section \ref{sec:corrbased}. However, we do not use a linear measure of dependency, to assess the dependency between projections. This would require optimization across projections to return a meaningful result. Instead, we compute the normalized mutual information that quantifies non-linear dependencies for each possible projection (grid). This approach allows us to take into account every single grid and each of them contributes to the computation of the average value of NMI across grids. No optimization is required.
+
+\section{The Randomized Information Coefficient} \label{sec:ricdef}
+
+The Randomized Information Coefficient (RIC), defined  as in \eqref{eq:RICstatistic}, is the average normalized mutual information across a set of $K$ randomized grids. RIC is computed on a data set $\{(\mathbf{x},\mathbf{y})_i\}_{i=0\dots,n-1} = \{(x_1\dots x_p,y_1 \dots y_q)_i\}_{i=0\dots,n-1}$ of $n$ data points to capture the dependency between the set $\mathbf{X}$ of $p$ variables and $\mathbf{Y}$ of $q$ variables.
+%A grid $G$ for the sets of variables $\mathbf{X}$ of $\mathbf{Y}$ is the Cartesian product of the two partitions $G_X$ and $G_Y$.
+%: i.e.,\ $G = G_X \times G_Y$.
+%$G_X$ is a partition of the domain of the variables in $\mathbf{X}$ in $r$ disjoint sets $S^X_u$. $G_Y$ is a partition of the domain of the variables in $\mathbf{Y}$ in $c$ disjoint sets $S^Y_v$. When a grid $G$ is applied to a data set, we denote with $(\mathbf{X},\mathbf{Y})|G$ the contingency table between $\mathbf{X}$ and $\mathbf{Y}$. A contingency table counts the occurrences of the data points of the studied data set in the portions of the domain defined by $S^X_u$, $S^Y_v$, and $S^X_u \cap S^Y_v$ with $1\leq u \leq r$ and $1 \leq v \leq c$. Let $a_u$ and $b_v$ be the count of data points in the portion of the domain defined by $S^X_u$ and $S^Y_v$ respectively. Let $n_{uv}$ be the number of data points in the portion of the domain defined by $S^X_u \cap S^Y_v$. Table \ref{tbl:conti} shows an example of contingency table.
+%\begin{table}[h]
+%\centering
+%\begin{tabular}{c|c|ccccc|}
+%\multicolumn{2}{c}{} & \multicolumn{5}{c}{  $G_Y$     }\\
+%\cline{3-7}
+%\multicolumn{2}{c|}{ } & $b_1$ & $\cdots$ & $b_v$ & $\cdots$ & $b_c$ \\
+%\cline{2-7}
+%\multirow{2}{*}{     }  & $a_1$ &
+%$n_{11}$ & $\cdots$ & $\cdot$ & $\cdots$ & $n_{1c}$ \\
+%\cline{2-2}
+%& $\vdots$ &
+%$\vdots$ &  & $\vdots$ &  & $\vdots$ \\
+%\cline{2-2}
+% $G_X$  & $a_u$ &
+%$\cdot$ &  & $n_{uv}$ & & $\cdot$ \\
+%\cline{2-2}
+%& $\vdots$ &
+%$\vdots$ & & $\vdots$ & & $\vdots$ \\
+%\cline{2-2}
+%& $a_r$ &
+%$n_{r1}$ & $\cdots$ & $\cdot$ & $\cdots$ & $n_{rc}$ \\
+%\cline{2-7}
+%\end{tabular}
+%\caption{Contingency table $(\mathbf{X},\mathbf{Y})|G$ on a data set $\{(\mathbf{x}_i,%\mathbf{y}_i)\}_{i=0\dots,n-1}$ defined by the grid $G$.}
+%\label{tbl:conti}
+%\end{table}
+%The mutual information $I(\mathbf{X},\mathbf{Y}|G)$, the entropy $H(\mathbf{X}|G)$, and the entropy $H(\mathbf{Y}|G)$ are defined as follows: 
+%\begin{equation}
+%I(\mathbf{X},\mathbf{Y}|G) \triangleq  \sum_{u=1}^r \sum_{v=1}^c \frac{n_{uv}}{n} \log{ \frac{n_{uv} \cdot n}{a_u b_v} }
+%\end{equation}
+%\begin{equation}
+%H(\mathbf{X}|G) \triangleq - \sum_{u=1}^r \frac{a_{u}}{n} \log{ \frac{a_{u}}{n} } \quad \quad H(\mathbf{Y}|G) \triangleq - \sum_{v=1}^c \frac{b_{v}}{n} \log{ \frac{b_{v}}{n} }
+%\end{equation}
+%RIC$(\mathbf{X},\mathbf{Y})$ is a measure of dependence between the set of variables $\mathbf{X}$ and the set of variables $\mathbf{Y}$.
+Being based on mutual information, the population value of RIC is always positive and it is equal to 0 under independence of $\mathbf{X}$ and $\mathbf{Y}$. This still holds true when either the variables in $\mathbf{X}$ or the variables in $\mathbf{Y}$ are dependent but the set $\mathbf{X}$ is independent of the set $\mathbf{Y}$.
+
+Here we propose a few practical ways to obtain contingency tables $(\mathbf{X},\mathbf{Y})|G$ based on the random grid $G$. First of all, by performing $K_r$ random discretizations for both $\mathbf{X}$ and $\mathbf{Y}$, we can \emph{efficiently} compute $K = K_r^2$ random grids obtained using all pairs of random discretizations. This allows us to generate fewer random discretizations than by independently generating each grid. The other required parameter is $D_{\max}$, which determines the maximum number of random bins to discretize one variable. Once both variables are discretized, the \proc{NMIproc} procedure can be used to compute the normalized mutual information. Algorithm \ref{alg:rmi} presents the pseudo-code for RIC computation.
+\begin{algorithm}[h]
+\caption{RIC computation.} \label{alg:rmi}
+\begin{codebox}
+\Procname{$\proc{RIC}(\mathbf{X},\mathbf{Y},K_r,D_{\max})$}
+%\zi		$ \CommentSymbol$ Generate $K$ random dicretizations for $\mathbf{x}$ and $\mathbf{y}$
+\li		\For $k \gets 1 $ \To $K_r$ \Do
+\li		$\id{BinLabel}X_k \gets \proc{RandomDiscr}(\mathbf{X},D_{\max})$
+\li		$\id{BinLabel}Y_k \gets \proc{RandomDiscr}(\mathbf{Y},D_{\max})$
+		\End
+%\zi		$ \CommentSymbol$ Compute $K^2$ normalized MI and take the average value
+%\li  $\id{RIC} \gets 0$
+\li		\For $k \gets 1 $ \To $K_r$ \Do
+	\li		\For $k' \gets 1 $ \To $K_r$ \Do
+		\li		$\id{RIC} += \proc{NMIproc}(\id{BinLabel}X_k,\id{BinLabel}Y_{k'})$
+	\End
+\End
+\li \Return $\id{RIC}/K_r^2$
+\end{codebox}
+\end{algorithm}
+
+{\bfseries Discretization of Random Variables:} Next we present in Algorithm \ref{alg:dicsr} the random discretization procedure for a single random variable $X$. A variable is discretized using a number of cut-offs $D$ chosen at random in $[1,D_{\max}-1]$. Each cut-off is chosen by sampling a random example of the variable with uniform distribution. The bin label for each data point can easily be encoded with integer values using $\mathbb{I}(\id{cut-off} < x_i)$ with $D$ passes through the data points, where $\mathbb{I}$ is the indicator function. The idea is inspired by random ferns \citep{Ozuysal2007,Mbq2012}: a type of random forest that achieves even higher speed. This can also be viewed as a random hash function \citep{Wang2012} or a random projection on a finite set \citep{Lopez-paz2013}. This procedure can be easily implemented in any programming language, for example C++. No sorting is required. The worst case computational complexity of this procedure is $\mathcal{O}(D_{\max} \cdot n)$.
+\begin{algorithm}[h]
+\caption{Random discretization of a random variable $X$.} \label{alg:dicsr}
+\begin{codebox}
+\Procname{$\proc{RandomDiscr}(X,D_{\max})$}
+%\zi		$ \CommentSymbol$ Generate the number of splits $D$ using a uniform distribution
+%\li $D  \gets U(1,D_{\max})$
+\li Choose the number of random cut-offs $D$ at random between $[ 1 , D_{\max} - 1]$
+\li		\For $d \gets 1 $ \To $D$ \Do
+%	\zi		$ \CommentSymbol$ Generate a random split
+	\li \id{cut-off} $\gets$ random data point
+	\li		\For $i \gets 0 $ \To $n-1$ \Do
+		\li		$\id{BinLabel}X(x_i) += \mathbb{I}(\id{cut-off} < x_i)$
+	\End
+\End
+\li \Return $\id{BinLabel}X$
+\end{codebox}
+\end{algorithm}
+Figure \ref{fig:exrndgrid} shows some examples of random grids obtained by random dicretization with cut-off of both variables $X$ and $Y$ independently:
+\begin{figure}[h]
+\centering
+\includegraphics[scale=1]{figures/rndgrids}
+\caption{Example of random grids obtained by appling Algorithm \ref{alg:dicsr} to $X$ and $Y$ independently. The normalized mutual information can be computed then on the associated contingency tables.}\label{fig:exrndgrid}
+\end{figure}
+
+
+{\bfseries Discretization of Sets of Random Variables:} An efficient approach to randomly discretize a set of $p$ random variables $\mathbf{X}$ consists not only in choosing cut-offs at random but also to randomly choose the variables to discretize: i.e.\ build a random fern \citep{Mbq2012} on the set of features $\mathbf{X}$. This is very computationally efficient: the worst case computational complexity is $\mathcal{O}(D_{\max} \cdot n)$ which is independent from the number of variables $p$. However, the straightforward implementation of a random fern presented in Algorithm \ref{alg:dicsrFern} does not allow to have fine control on the number of generated bins $D_{\max}$: the number of maximum bins $D_{\max}$ is exponential in the number of cut-offs $D$, i.e.\ $D_{\max} = 2^{D}$. Therefore $D$ cannot be greater than $\log_2{D_{\max}} - 1$. Moreover, many bins can be empty due to repeated choices of the same variable.
+\begin{algorithm}[h]
+\caption{Random \emph{fern} discretization of a set $\mathbf{X}$ of random variables} \label{alg:dicsrFern}
+\begin{codebox}
+\Procname{$\proc{RandomDiscrFern}(\mathbf{X},D_{\max})$}
+%\zi		$ \CommentSymbol$ Generate the number of splits $D$ using a uniform distribution
+%\li $D  \gets U(1,D_{\max})$
+\li Choose the number of random cut-offs $D$ at random between $[1,\log_2{D_{\max}} - 1]$
+\li		\For $d \gets 0 $ \To $D-1$ \Do
+%	\zi		$ \CommentSymbol$ Generate a random split
+	\li $j \gets$ random index of variable in $\mathbf{X}$
+	\li \id{cut-off} $\gets$ random data point for $X_j$
+	\li		\For $i \gets 0 $ \To $n-1$ \Do
+		\li		$\id{BinLabel}X(\mathbf{x}_i) += 2^d \cdot \mathbb{I}(\id{cut-off} < x_{ij})$
+	\End
+\End
+\li \Return $\id{BinLabel}X$
+\end{codebox}
+\end{algorithm}
+
+We therefore propose a novel randomized approach to discretize a set of $p$ variables $\mathbf{X}$ in exactly $D$ bins, maintaining linear worst case complexity in the number of variables and records: $\mathcal{O}(D_{\max} \cdot n \cdot p)$. By choosing $D$ random data points as seeds, we can easily discretize a set of variables into $D$ non-empty bins by assigning each data point to its closest seed. We make use of the Euclidean norm to find the distances between points. For the ease of implementation, both random cut-offs in Algorithm \ref{alg:dicsrFern} and random seeds in Algorithm \ref{alg:dicsrSeeds} are chosen via sampling with replacement. Figure \ref{fig:exvor3d} shows an example of relationship between the set of variables $\mathbf{X}$ and a single variable $Y$ as well as a possible discretization of $\mathbf{X}$  using random seeds.
+\begin{algorithm}[h]
+\caption{Random \emph{seeds} discretization of a set $\mathbf{X}$ of random variables} \label{alg:dicsrSeeds}
+\begin{codebox}
+\Procname{$\proc{RandomDiscrSeeds}(\mathbf{X},D_{\max})$}
+%\zi		$ \CommentSymbol$ Generate the number of splits $D$ using a uniform distribution
+%\li $D  \gets U(1,D_{\max})$
+\li Choose the number of random seeds $D$ at random between $[ 2 , D_{\max} ]$
+\li Choose a set $S = \{\mathbf{s}_1\dots \mathbf{s}_j \dots \mathbf{s}_D \}$ of $D$ random seeds among the data points
+	\li		\For $i \gets 0 $ \To $n-1$ \Do
+		\li		$\id{BinLabel}X(\mathbf{x}_i) = {\arg \min}_{j:\mathbf{s}_j \in S} \mbox{Dist}(\mathbf{x}_i,\mathbf{s}_j)$
+	\End
+\li \Return $\id{BinLabel}X$
+\end{codebox}
+\end{algorithm}
+\begin{figure}[h]
+\centering
+\subfloat[Relationship of $\mathbf{X} = (X_1,X_2)$ and $Y$]{\includegraphics[scale=.9]{figures/ExampleQuadratic3d}\label{fig:rel3d}}
+\quad \quad
+\subfloat[Random discretization of $\mathbf{X} = (X_1,X_2)$]{\includegraphics[scale=.8]{figures/Voronoi}\label{fig:rndvoro}}
+\caption{Example of quadratic relationship between the set of variables $\mathbf{X}=(X_1,X_2)$ and the variable $Y$. Fig.\ \ref{fig:rndvoro} shows an example of discretization with random seeds to $\mathbf{X}$ by applying Algorithm \ref{alg:dicsrSeeds}.}\label{fig:exvor3d}
+\end{figure}
+
+
+The worst case computational complexity for Algorithm \ref{alg:rmi} to compute RIC between the set $\mathbf{X}$ of $p$ variables and the set $\mathbf{Y}$ of $q$ variables is thus determined by the discretization algorithm: %$\mathcal{O} \left( K_r \cdot \text{discr\_compl} + K_r^2(n + D_{\max}) \right)$:
+\begin{itemize}
+\item $\mathcal{O} \left( K_r \cdot D_{\max} \cdot n + K_r^2(n + D_{\max}^2) \right)$ if random ferns are used;
+\item $\mathcal{O} \left( K_r \cdot D_{\max} \cdot n \cdot (p + q) + K_r^2(n + D_{\max}^2) \right)$ if random seeds are used.
+\end{itemize}
+$K_r$ controls the trade-off between accuracy and computational time. The more randomizations $K_r$ are used, the lower the variance, but the longer the computational time. Based on experimentation we consider $K_r = 20$ a reasonable value. The number of maximum bins $D_{\max}$ should be chosen in order to avoid increasing the grid resolution towards the limit of $\mathit{NI}= 1$ where each point belongs to a single cell. In the worst case, for uniformly distributed variables and $n$ samples we would like to have at least one point per cell of the contingency table. This implies:
+$$ \frac{n}{D_{\max} D_{\max}} \geq 1 \Rightarrow \frac{n}{D_{\max}^2} \geq 1 \Rightarrow D_{\max}^2 \leq n \Rightarrow D_{\max} = \lfloor \sqrt{n} \rfloor$$
+However, a larger value of $D_{\max}$ might help to identify more complex relationships, at the cost of higher variance. $D_{\max}$ can be tuned to obtain optimal performance. Given that in our analysis we used $D_{\max} = \mathcal{O}(\sqrt{n})$, RIC's worst case computational complexity in the number of data samples is $\mathcal{O}(n^{1.5})$.
+%Experimentally, we noticed $D_{\max} = \lfloor \sqrt{n} \rfloor - 1$ is a reasonable choice in real scenarios, obtaining in the worst case $\sqrt{n}$ bins for both $X$ and $Y$.
+%, also used in \cite{Mosteller1977},
+
+
+\section{Variance Analysis of RIC} \label{sec:ricvar}
+
+In this section, we theoretically justify the use of random grids to obtain small variance with the RIC statistic. Then, we prove that a lower
+variance is beneficial when comparing dependencies and
+ranking relationships according to the grid estimator of mutual information.
+%All proofs are provided in the Appendix \ref{app:thproofs} in the supplementary material.
+
+\subsection{Ensembles for Reducing the Variance} \label{sec:vardecrease}
+
+The main motivation for our use of random discretization grids is that averaging across independent random grids allows reduction of variance \cite{Geurts2002}. By using random grids, it is possible to achieve small correlation between the different estimations of $\textup{NMI}$. RIC variance tends to be a small value if the estimations are uncorrelated.
+\begin{theorem} \label{th:biasVar}
+Let $\textup{NMI}_G = \textup{NMI} \big( (\mathbf{X},\mathbf{Y})|G \big)$ be the normalized mutual information estimated on a random grid $G$ and $\mbox{\emph{RIC}}$ as per Eq.\ \eqref{eq:RICstatistic}. If $\textup{NMI}$ estimations for \emph{RIC} are uncorrelated then:
+\[
+\lim_{K \rightarrow \infty}{\mbox{\emph{Var}} ( \mbox{\emph{RIC}} )} =  \mbox{\emph{Var}}_{G} ( E [  \textup{NMI}_G |G] )
+\]
+\end{theorem}
+\begin{proof}
+The variance of $\mbox{RIC}$ can be decomposed using Eve's law of total variance according the i.i.d. random variables grids $G_k$ with $k=1\dots K$ as follows:
+\begin{align*}
+\mbox{Var(RIC)}=& \mbox{Var}_{G_1 \dots G_{K}} \Big( E[ \mbox{RIC} | G_1 \dots G_{K}] \Big) + E_{G_1 \dots G_{K}} \Big[ \mbox{Var} ( \mbox{RIC} | G_1 \dots G_{K}) \Big] \\
+=&  \mbox{Var}_{G_1 \dots G_{K}} \Big( E \Big[ \frac{1}{K}\sum_{k=1}^{K} \textup{NMI}_{G_k}|G_1 \dots G_{K} \Big] \Big) \\
+&+ E_{G_1 \dots G_{K}} \Big[ \mbox{Var} \Big( \frac{1}{K}\sum_{k=1}^{K} \mathit{NI}_{G_k}|G_1 \dots G_{K} \Big) \Big]\\
+=&  \mbox{Var}_{G_1 \dots G_{K}} \Big( \frac{1}{K}\sum_{k=1}^{K}  E [ \textup{NMI}_{G_k}|G_k] \Big) \\
+&+ E_{G_1 \dots G_{K}} \Big[ \frac{1}{{K}^2} \Big( \sum_{k=1}^{K}\mbox{Var} (  \textup{NMI}_{G_k}| G_k) \\
+&+ \sum_{k \neq k'} \mbox{Cov}(\textup{NMI}_{G_k},\textup{NMI}_{G_{k'}} | G_k, G_{k'} ) \Big)\Big]  \\
+=& \mbox{Var}_{G}  ( E [ \textup{NMI}_G| G] ) \\
+&+ E_{G_1 \dots G_{K}} \Big[ \frac{1}{{K}^2} \Big( \sum_{k=1}^{K}\mbox{Var} (  \textup{NMI}_{G_k}| G_k) \\
+&+ \sum_{k \neq k'} \mbox{Corr}(\textup{NMI}_{G_k},\textup{NMI}_{G_{k'}} | G_k, G_{k'}) \\
+&\times \mbox{Var} (  \textup{NMI}_{G_k}| G_k ) \mbox{Var} (  \textup{NMI}_{G_{k'}}| G_{k'} )\Big)\Big]  
+\end{align*}
+If $\mbox{Corr}(\textup{NMI}_{G_k},\textup{NMI}_{G_{k'}} | G_k, G_{k'}) = 0$ for all $k$ and $k'$, then:
+\begin{flalign*}
+\mbox{Var(RIC)}=& \mbox{Var}_{G}  ( E [ \textup{NMI}_G| G] ) + E_{G_1 \dots G_{K}} \Big[ \frac{1}{{K}^2} \sum_{k=1}^{K}\mbox{Var} (  \textup{NMI}_{G_k}| G_k) \Big]  & \\
+=& \mbox{Var}_{G}  ( E [ \textup{NMI}_G| G ] ) + \frac{ E_{G} [ \mbox{Var} (  \textup{NMI}_{G}| G) ] }{K}
+\end{flalign*}
+that when $K \rightarrow \infty$ is equal to $\mbox{Var}_{G}  ( E [ \textup{NMI}_G| G] )$. 
+\end{proof}
+\noindent The expected value $E [  \textup{NMI}_G |G]$ is less dependent on the data because of the random grid $G$ and shows small variance across grids. Intuitively, this result suggests that some variance of the data can be captured with the random grids. We empirically validate this result in Figure \ref{fig:VarianceTh1}. In practice, it is very difficult to obtain completely uncorrelated $\textup{NMI}$ estimations. Nonetheless, the use of random grids allows us to strongly decrease their correlation.
+
+\begin{figure}[h]
+\centering
+\includegraphics[scale=1]{figures/plotVarTh1xThesis}
+\caption{
+Variance of RIC compared to the variance of $\textup{NMI}_F$ on a fixed equal width grid $F$. According to Theorem \ref{th:biasVar} if estimations are uncorrelated, the variance of RIC tends to the variance of 
+$E [  \textup{NMI}_G |G]$ which is less dependent on the data. In practice, estimations are always correlated. Nonetheless, the use of random grids helps in decreasing the correlation between them.
+}\label{fig:VarianceTh1}
+\end{figure}
+
+We aim to show that the decrease in variance is due to the random grid $G$, by comparing the variance of $\textup{NMI}_F$ where $F$ is a fixed grid with equal width bins for $X$ and $Y$. The number of bins for each variable is fixed to 9 for both $G$ and $F$, and cut-offs are generated in the range $[-2,2]$ and $[-3,3]$ for $X$ and $Y$, respectively. The chosen joint distribution $(X,Y)$ is induced on $n = 100$ points with $X \sim \mathcal{N}(0,1)$ and $Y = X + \eta$ with $\eta \sim \mathcal{N}(0,1)$.
+% We variance is computed via 10{,}000 simulations and the expected valued via 5{,}000.
+The variance of RIC decreases as $K$ increases because the random grids enable us
+to decorrelate the estimations of $\textup{NMI}$. In general, if we allow grids of different cardinality (different number of cut-offs) and large $K$, the variance can be decreased even further.
+
+Using RIC in Algorithm \ref{alg:rmi} we can efficiently compute $K = K_r^2$ grids. Increasing the number of random grids by increasing $K_r$ is always beneficial. However, this is particularly important when the sample size $n$ is small. In Figure \ref{fig:varRIC} we show the behavior of RIC's variance at the variation of $K_r$ for different sample size $n$ for the same relationship discussed above. The variance reaches the plateau already at $K_r = 50$ when $n = 500$. On the other hand, when the sample size is small, e.g.\ $n = 50$, the variance is still decreasing at $K_r = 100$. $K_r$ might be chosen according to the sample size $n$: i.e.\ larger if the sample size $n$ is small and smaller if the sample size $n$ is large. Nonetheless, having a large $K_r$ is always beneficial in general, at the cost of computational time.
+
+\begin{figure}[h]
+\centering
+\includegraphics[scale=.98]{figures/plotVarRIC}
+\caption{
+Variance of RIC in Algorithm \ref{alg:rmi} at the increase of the number of random grids for different sample size $n$. Increasing $K_r$ is always beneficial. However, it is particularly important when $n$ is small. For example, the variance of RIC still decreases for $K_r > 50$ for this particular relationship between $X$ and $Y$.
+}\label{fig:varRIC}
+\end{figure}
+
+\subsection{Importance of Variance in Comparing Relationships using the Grid Estimator of Mutual Information}
+
+%In this Section we formalize and prove some informal claims encountered about the importance of bias when comparing relationships encountered in literature. Independently in \cite{Kraskov2004} and \cite{Schaffernicht2010} we can find claims about some ``bias cancellation property'': systematic biases might indeed cancel out when the task it comparisons of relationships.
+When mutual information is used as a proxy for the strength of the relationship, a small estimation variance is likely to be more useful than a smaller bias when comparing relationships, as implied by some observations in \citet{Kraskov2004,Margolin2006,Schaffernicht2010}. The reason is that systematic biases cancel each other out. We formalize these observations as follows:
+\begin{theorem} \label{th:varImportant}
+Let $\mbox{\emph{bias}}(\hat{\phi}) = \phi- E[\hat{\phi}]$ be the bias of the estimator $\hat{\phi}$. Let $\hat{\phi}(s) = \hat{\phi}_s$ and $\hat{\phi}(w) = \hat{\phi}_w$ be estimations of $\phi$ on the strong relationship $s$ and the weak relationship $w$, where the true values are $\phi_s > \phi_w$. The probability of making an error $P(\hat{\phi}_s \leq \hat{\phi}_w)$ is bounded above:
+\[
+P(\hat{\phi}_s \leq \hat{\phi}_w) \leq \frac{\mbox{\emph{Var}}(\hat{\phi}_s) + \mbox{\emph{Var}}(\hat{\phi}_w)}{\mbox{\emph{Var}}(\hat{\phi}_s) + \mbox{\emph{Var}}(\hat{\phi}_w) + \Big(\phi_s - \phi_w - \big( \mbox{\emph{bias}}(\hat{\phi}_s) - \mbox{\emph{bias}}(\hat{\phi}_w) \big)  \Big)^2}
+\]
+if $E[\hat{\phi}_s] > E[\hat{\phi}_w]$ or equivalently if $\phi_s - \phi_w > \mbox{\emph{bias}}(\hat{\phi}_s) - \mbox{\emph{bias}}(\hat{\phi}_w)$.
+\end{theorem}
+\begin{proof}
+Let $\hat{\Delta} = \hat{\phi}_w - \hat{\phi}_s$, if $E[\hat{\Delta}] < 0$ then:
+\[
+P (\hat{ \Delta } \geq 0) = P ( \hat{ \Delta } - E[ \hat{ \Delta }]  \geq - E[ \hat{\Delta}] ) \leq \frac{ \mbox{Var}( \hat{ \Delta }) }{\mbox{Var}(\hat{\Delta}) + E[\hat{\Delta}]^2 }
+\]
+according to the 1-sided Chebyshev inequality that is also known as the Cantelli's inequality \citep{RossBook}.
+\end{proof}
+\noindent {\bf Remark: } \emph{If there is a systematic bias component, the variance of a dependency measure is important also to identify if a relationship exists. The probability of making an error in determining if a relationship exists (testing for independence between $X$ and $Y$ with $\hat{\phi}$) is just a special case of Theorem \ref{th:varImportant} where $\phi_w = 0$. }\\
+
+\noindent Regarding the grid estimator $\mbox{MI}_F = \mbox{MI}\big( (X,Y)|F \big)$ on a fixed grid $F$ with $n_F$ bins of the differential mutual information between two variables $I(X,Y)$ in Eq.\ \eqref{eq:micont}, there is always a systematic bias component which is a function of the number of samples $n$ and the number of bins $n_F$ \citep{Moddemeijer1989}. 
+This systematic bias component cancels out in $\mbox{bias}(\mbox{MI}_{F,s}) - \mbox{bias}(\mbox{MI}_{F,w})$. If the non-systematic estimation bias is small enough, then the denominator of the upper bound is dominated by $I_s - I_w$. Therefore, the upper bound decreases because of the numerator, i.e., the sum of the variances. Of course variance is just part of the picture. It is worth to decrease the variance of an estimator if the estimand has some utility. Moreover, many estimators have a bias and variance trade-off. Deliberately reducing the variance at the expense of bias is not a good idea. Variance can be reduced if there is a strong systematic estimation bias component and if the effect on the non-systematic bias is minimal. 
+
+We empirically compare the probability of error as stated in Theorem \ref{th:varImportant} for the estimation the differential mutual information $I$ with grids. RIC can be used to estimate mutual information if we average across  grids of the same cardinality and do not normalize mutual information on the grids. Let $s = (X,Y_s)$ and $w = (X,Y_w)$ be the strong and the weak relationships where $X \sim \mathcal{N}(0,1)$, $Y_s = X + \eta_s$ and  $Y_w = X + \eta_w$ with $\eta_s \sim \mathcal{N}(0,.7)$ and $\eta_w \sim \mathcal{N}(0,1)$. Indeed, if $X \sim \mathcal{N}(0,\sigma^2_X)$ and $Y = X + \eta$ with $\eta \sim \mathcal{N}(0,\sigma^2_\eta)$ it is possible to analytically compute the mutual information between $X$ and $Y$: $I(X,Y) = 0.5 \log_2{ ( 1 + \sigma^2_X / \sigma^2_\eta)}$. In Figure \ref{fig:plotBounds} we compare the probability of error $P(\mbox{RIC}_s < \mbox{RIC}_w)$ for RIC as an estimator of mutual information and the probability of error $P(\mbox{MI}_{F,s} < \mbox{MI}_{F,w})$ for the estimator $I_{F}$ on a fixed equal width grid $F$, with an increase of the number of random grids $K$ for RIC.
+%at the increase of the number of samples $n$ via 10{,}000 simulations.
+We generate 13 bins for $X$ and $Y$ for both $F$ and RIC's grids. The distributions are induced on $n = 100$ samples.
+\begin{figure}[h]
+\centering     %%% not \center
+\includegraphics[scale=.98]{figures/PlotErrK}
+\caption{Probability of error in identifying the strong relationship. RIC's probability is smaller due to its small variance.} \label{fig:plotBounds}
+\end{figure}
+%Both the probability of error and the upper bound are smaller for RIC,
+%due to the small variance. If we break down the upper bound for $n = 100$,
+%we see that: $(I_s - I_w)^2 = 0.044$, $\mbox{Var}(\mbox{RIC}_s) + \mbox{Var}(\mbox{RIC}_w) = 0.004$, $\big( \mbox{bias}(\mbox{RIC}_s) - \mbox{bias}(\mbox{RIC}_w) \big)^2 = 0.011$; $\mbox{Var}(I_{G_{\mathit{fix}},s}) + \mbox{Var}(I_{G_{\mathit{fix}},w}) = 0.013$, $\big( \mbox{bias}(I_{G_{\mathit{fix}},s}) - \mbox{bias}(I_{G_{\mathit{fix}},w}) \big)^2 = 0.009$.
+%Even if the bias difference is bigger for RIC, the denominator is dominated by the differences of the true values $I_s - I_w$.
+%
+The probability of error is smaller for RIC because of its small variance. Indeed, the probability of error decreases with the increase of $K$, just as the variance decreases with bigger $K$. The bias stays constant when $K$ varies and it contributes less to a small probability of error. We aim to show also the contribution of bias and variance to the probability of error by computing its upper bound from Theorem \ref{th:varImportant}. The upper bounds of the probability of error for RIC and $\mbox{MI}_F$ are respectively:
+\begin{align*}
+ U(\mbox{RIC}) &= \frac{\mbox{Var}(\mbox{RIC}_s) + \mbox{Var}(\mbox{RIC}_w)}{\mbox{Var}(\mbox{RIC}_s) + \mbox{Var}(\mbox{RIC}_w) + \Big(I_s - I_w - \big( \mbox{bias}(\mbox{RIC}_s) - \mbox{bias}(\mbox{RIC}_w) \big)  \Big)^2} \\
+U(\mbox{MI}_F) &= \frac{\mbox{Var}(\mbox{MI}_{F,s}) + \mbox{Var}(\mbox{MI}_{F,w})}{\mbox{Var}(\mbox{MI}_{F,s}) + \mbox{Var}(\mbox{MI}_{F,w}) + \Big(I_s - I_w - \big( \mbox{bias}(\mbox{MI}_{F,s}) - \mbox{bias}(\mbox{MI}_{F,w}) \big)  \Big)^2}
+\end{align*}
+Figure \ref{fig:supp:plotBounds} shows the behavior of the upper bound at the variation of $K$ term by term. The bias difference for RIC as an estimator of the differential mutual information $I$ is a bit bigger than the bias difference for $\mbox{MI}_F$. Nonetheless, the probability of error decreases mainly because of the variance decrease of RIC.
+\begin{figure}[h]
+\centering     %%% not \center
+\subfloat[Probability of Error and Upper Bound]{\label{fig:plotErr}\includegraphics[scale=1]{figures/plotErrorK}}
+\subfloat[Terms of the upper bound]{\label{fig:plotUB}\includegraphics[scale=1]{figures/plotErrorKbreakdown}}
+\caption{Probability of error in identifying the strong relationship. RIC's probability is smaller due to its small variance.} \label{fig:supp:plotBounds}
+\end{figure}
+
+Moreover, when the dependency measure with a systematic bias is used for ranking relationships, we can still show that reducing the estimator variance plays an important role. %That is, systematic biases cancel out.
+%Moreover, if the bias of a dependency measure estimator $\hat{\phi}$ is small enough compared to the differences of the true values of the ranked dependencies, a small variance is the main contributor to the accuracy.
+\begin{corollary} \label{th:ranking}
+When ranking  $m$ relationships according to the true ranking $\phi_1 > \phi_2 > \dots > \phi_m$, the probability $P(\hat{\phi}_1 > \hat{\phi}_2 > \dots > \hat{\phi}_m)$ of accurately obtaining the correct ranking using the estimators $\hat{\phi}_i, i=1,\dots,m$ is bounded below by:
+\[
+1 - \sum_{i=1}^{m-1} \frac{\mbox{\emph{Var}}(\hat{\phi}_{i+1}) + \mbox{\emph{Var}}(\hat{\phi}_i)}{\mbox{\emph{Var}}(\hat{\phi}_{i+1}) + \mbox{\emph{Var}}(\hat{\phi}_i) + \Big(\phi_{i+1} - \phi_i - \big( \mbox{\emph{bias}}(\hat{\phi}_{i+1}) - \mbox{\emph{bias}}(\hat{\phi}_i) \big) \Big)^2}
+\]
+if $E[\hat{\phi}_{i+1}] > E[\hat{\phi}_i]$ or equivalently if $ \phi_{i+1} - \phi_i  > \mbox{\emph{bias}}(\hat{\phi}_{i+1}) - \mbox{\emph{bias}}(\hat{\phi}_i) \ \forall i=1\dots m-1$.
+\end{corollary}
+\begin{proof}
+Let $\mathcal{E}_i = \{ \hat{\phi}_{i+1} > \hat{\phi}_i\}$ be an event then:
+\begin{align*}
+P(\hat{\phi}_1 > \hat{\phi}_2 > \dots > \hat{\phi}_m) &=  P(\mathcal{E}_1 \cap \mathcal{E}_2 \cap \dots \cap \mathcal{E}_{m-1}) = 1 - P(\mathcal{E}_1^c \cup \mathcal{E}_2^c \cup \dots \cup \mathcal{E}^c_{m-1}) \\ 
+&\geq 1 - \sum_{i=1}^{m-1} P(\mathcal{E}_i^c)
+\end{align*}
+where $\mathcal{E}_i^c$ is the complementary event to $\mathcal{E}_i$: $\mathcal{E}_i^c = \{ \hat{\phi}_{i+1} \leq \hat{\phi}_i\}$. The corollary follows using the upper bound for $P(\mathcal{E}_i^c)$ proved in Theorem 2:
+\[
+P(\mathcal{E}_i^c) \leq \frac{\mbox{Var}(\hat{\phi}_{i+1}) + \mbox{Var}(\hat{\phi}_i)}{\mbox{Var}(\hat{\phi}_{i+1}) + \mbox{Var}(\hat{\phi}_i) + \Big(\phi_{i+1} - \phi_i - \big( \mbox{bias}(\hat{\phi}_{i+1}) - \mbox{bias}(\hat{\phi}_i) \big)  \Big)^2}
+\]
+\end{proof}
+\noindent As we empirically demonstrated above for the grid estimator of mutual information, $\mbox{{bias}}(\hat{\phi}_{i+1}) - \mbox{{bias}}(\hat{\phi}_i) $ tends to be small if there is some systematic bias component, and thus a small variance is the main contributor to the accuracy.
+
+{ \bfseries Remark about boostrapping:} It is also natural to consider whether using bootstrapping improves the discrimination performance of a statistic by decreasing the variance.
+%This analysis is provided in the appendix \ref{sec:supp:bootstrap}.
+When bootstrapping, the statistic is actually estimated on around 63\% of the samples and this decreases the discrimination ability of each measure. 
+Similarly, sampling without replacement of a smaller number of points and averaging across different estimation of a measure is not expected to perform well. The best way to decrease the variance is thus to inject randomness in the estimator itself. This is the rationale for RIC. We achieve this goal by using a strong measure such as mutual information and injects randomness in its estimation in order to decrease the global variance.
+
+
+
+\section{Experiments on Dependency Between Two Variables} \label{sec:experimentsTwoVar}
+
+In this section, we compare RIC\footnote{RIC implementation is available at \url{https://sites.google.com/site/randinfocoeff/} } with 15 other state-of-the-art statistics that
+quantify the dependency between two variables $X$ and $Y$. We focus on three tasks: identification of noisy relationships, inference of network of variables, and feature filtering for regression. Table \ref{tbl:measures} shows the list of competitor measures compared in this chapter and the parameters used in their analysis. The parameters used are the default parameters suggested by the authors of the measures in their respective papers. Indeed, only on the task of feature filtering for regression it is possible to tune parameters with cross-validation on a given data set. The tasks of inference of network of variables and identification of noisy relationships are unsupervised learning tasks and do not allow parameter tuning when applied to a new data set. Nonetheless, most of the default parameters are not tuned for hypothesis testing. Therefore, we decided to follow the approach used in \cite{Reshef2015empirical}. In this empirical study, leading measures of dependence are compared in terms of two important features: equitability and power against independence. We do not compare RIC in terms of equitability. The MIC and MIC$_e$ statistics have been shown to be more equitable than mutual information and to be the state-of-the-art on this task. Rather, we focus on power against independence on different noise models. Given a particular noise model, we identify the best parameters for independence testing by maximizing the power on average on a set of relationships and different noise levels.
+
+\begin{table}[h!]
+\centering
+\footnotesize
+\begin{tabular}{p{3.4cm}lL{5cm}Hp{4cm} } %H hidden
+\toprule
+Family & Acr. & Name & Citation & Parameters \\
+\toprule
+\multirow{5}{*}{ \pbox{2cm}{ \mbox{Mutual information} estimators } } &
+$I_\text{ew}$ &\breaklinecell{Mutual Information \\ \scriptsize{(Discretization equal width)}} & \cite{Steuer2002} & $D = \lfloor \sqrt{n/5} \rfloor$ \\
+&$I_\text{ef}$ & \breaklinecell{Mutual Information \\ \scriptsize{(Discretization equal frequency)}} & \cite{Steuer2002} & $D = \lfloor \sqrt{n/5} \rfloor $\\
+&$I_{\text{A}}$  & \breaklinecell{Mutual Information \\ \scriptsize{(Adaptive Partitioning)}} & \cite{Cellucci2005} & - \\
+&$I_{\text{mean}}$ & \breaklinecell{ Mutual Information \\ \scriptsize{(Mean Nearest Neighbors)} }& \cite{Faivishevsky2009} & - \\
+&$I_{\text{KDE}}$ & \breaklinecell{ Mutual Information \\ \scriptsize{(Kernel Density Estimation)} }& \cite{Moon1995} &
+%$h = \frac{n+1}{\sqrt{12} n^{1.25}}$\\
+$h = n^{-1/6}$\\
+&$I_{k\text{NN}}$ & \breaklinecell{Mutual Information \\ \scriptsize{(Nearest Neighbors)} }& \cite{Kraskov2004} & $k = 6$ \\
+\hline
+\multirow{3}{*}{ \pbox{2cm}{Correlation based }} &
+$r^2$ & Squared Pearson's Correlation  & - & - \\
+&ACE & Alternative Conditional Expectation & \cite{Breiman1985} & $\epsilon = 10^{-12}$ \\
+&dCorr & Distance Correlation & \cite{Szekely2009} & - \\
+&RDC & Randomized Dependency Coefficient & \cite{Lopez-paz2013} & $k = 20$, $ s = 1/6$ \\
+\hline
+\multirow{1}{*}{ \pbox{2cm}{Kernel based }} &
+HSIC & Hilbert-Schmidt Independence Criterion & \cite{Gretton2005} & $\sigma_X,\sigma_Y = $ med. dist. \\
+\hline
+\multirow{3}{*}{ \pbox{1.6cm}{Information theory based }}&
+MIC & Maximal Information Coefficient & \cite{Reshef2011} & $\alpha = 0.6$ \\
+&GMIC & Generalized Mean Information Coefficient & \cite{Luedtke2013} & $\alpha = 0.6, p=-1$ \\
+&MID & Mutual Information Dimension & \cite{Sugiyama2013} & - \\
+&TIC$_e$ & Total Information Coefficient & \cite{Reshef2015TIC} & $\alpha = 0.65$ \\
+\hline
+&RIC & Randomized Information Coefficient & - & $K_r = 20$, $D_{\max} = \lfloor \sqrt{n} \rfloor$\\
+%\hline
+\end{tabular}
+\caption{Dependency measures compared in this paper and parameters used in the tasks of network inference,  feature filtering for regression, and estimation of running times.} \label{tbl:measures}
+\end{table}
+
+All the measures compared in this section were thoroughly discussed in Section \ref{sec:numdep}. The measures in the first group of Table \ref{tbl:measures} are mutual information estimators. $I_{\textup{ew}}$ and $I_{\textup{ef}}$ are respectively the equal-width and equal-frequency bin grid estimator of mutual information. $I_{\textup{A}}$\footnote{From \url{http://www.iim.csic.es/~gingproc/mider.html} \citep{Villaverde2014}.} is the adaptive grid estimator of mutual information that assures the number of points for each cell to be at least 5. We chose to fix the number of bins $D$ for $I_{\textup{ew}}$ and $I_{\textup{ef}}$ to $ \lfloor \sqrt{n/5} \rfloor $ because no universally accepted value was found in the literature. Kraskov's $k$ nearest neighbors estimator $I_{k\text{NN}}$\footnote{From \url{http://code.google.com/p/information-dynamics-toolkit/} \citep{JIDT}.} uses a fixed parameter $k = 6$ and the kernel density estimator $I_{\text{KDE}}$\footnote{From \url{http://tinyurl.com/ojlkrla} \citep{Margolin2006}.} uses the parameter
+%$h = \frac{n+1}{\sqrt{12} n^{1.25}}$
+$h = \frac{4}{p+q + 2}^{1/(p+q+4)} n^{-1/(p + q +4)} = n^{-1/6}$
+when comparing two variables given that the number of variables is $p + q = 2$. This is one possible kernel width and suggested as a default value in \citet{Steuer2002}. We also compare $I_{\textup{mean}}$ from \cite{Faivishevsky2009}. All other measures were used with the default parameters suggested in their respective papers as described in Table \ref{tbl:measures}: dCorr\footnote{From \url{http://tinyurl.com/ozadxzr}.}, RDC, ACE\footnote{From \url{http://tinyurl.com/oja3k3v}.}, HSIC\footnote{From \url{http://people.kyb.tuebingen.mpg.de/arthur/indep.htm}.}, MIC\footnote{From \url{http://mpba.fbk.eu/cmine}.}, GMIC, MID\footnote{From \url{https://github.com/mahito-sugiyama/MID}.}. As we discussed above, we tuned the parameters of each measure when testing for independence. Being the state-of-the-art in this task, we also introduced TIC$_e$ in the analysis. Regarding RIC on computing dependency between two variables, we decided to generate discretizations for $X$ and $Y$ according Algorithm \ref{alg:dicsr}; we generate for each discretization a random number of cut-offs $D$ chosen at random uniformly in $[1,D_{\max}-1]$.
+
+\subsection{Identification of Noisy Relationships} \label{sec:noisyandnot}
+
+We consider the task of discriminating between noise and a noisy relationship, i.e., determining whether a dependency exists by testing for independence between $X$ and $Y$, across a large number of
+dependency types.
+%In this scenario, a dependency measure not only must have the ability to detect a large variety of relationships, but also must show low variance. If the variance is high, the values obtainable under complete noise significantly overlap with the ones obtainable under a real relationship,  thus prohibiting the identification of the latter. 
+In Figure \ref{fig:experimentFunctions}, 12 different relationships between $X$ and $Y$ are induced on $n = 320$ data points.
+
+We use the same setting as in \cite{Simon2014}. In this study, the measure performance on a relationship is assessed by power at level $\alpha = 0.05$. For each test case, we generated 500 random data sets with  $X$ and $Y$ being completely independent. These constitute the \emph{negative} class or the \emph{complete noise} class. Then, for each noise level between 1 and 30, we generate 500 other data sets to create the \emph{positive} class or the \emph{noisy relationship} class. We evaluate the ability of different measures to discriminate between complete noise and the noisy relationship classes by computing the power (sensitivity) for the positive class at level $\alpha = 0.05$. Experiments were carried out on two different noise models, namely \emph{additive noise} and \emph{white noise}. In the first scenario we add different levels of Gaussian noise by varying the noise standard deviation $\sigma_\eta$. In the second scenario we substitute some points of the relationship with uniform noise. Figures \ref{fig:noiseLevels} and \ref{fig:noiseLevelsWhite} show examples of noise levels for the linear relationship in the additive noise model and white noise model respectively. Given that all measures present good discrimination ability in the white noise model, level 1 (lowest noise) starts by assigning 40\% of points to the relationship and 60\% to uniformly distributed noise.
+
+\begin{figure}[ht]
+\flushleft
+\subfloat[Relationships types $n = 320$.]{
+\includegraphics[scale=.73]{figures/Fig3a}
+\label{fig:experimentFunctions}
+}
+\subfloat[Additive.]{
+\includegraphics[scale=.73]{figures/NoiseLevels}
+\label{fig:noiseLevels}
+}
+\subfloat[White.]{
+\includegraphics[scale=.73]{figures/NoiseLevelsWhite}
+\label{fig:noiseLevelsWhite}
+}
+\caption{Relationships between two variables and example of \emph{additive} and \emph{white} noise.}\label{fig:thenoise} % keep here otherwise problems with references
+\end{figure}
+
+Power at level $\alpha = 0.05$ of discrimination between complete noise and noisy relationship for each relationship type presented in the paper is shown in Figures~\ref{fig:aucAdditive} and \ref{fig:aucWhite}. These two figures show result for each measure with optimal parameters for independence testing. Indeed, given that the default parameters of each measure are not tuned for independence testing, we decided to follow the approach of \cite{Reshef2015empirical}: for a particular noise model we identify the parameters that maximize the average power for all level of noise and all relationship types. Parameter tuning is performed on Figure \ref{fig:tuningPower} and Figure \ref{fig:tuningPowerWhite}. Regarding the discretization based estimators of mutual information $I_{\textup{ew}}$ and $I_{\textup{ef}}$, we varied the parameter $c$ in $D = \lfloor \sqrt{n/c} \rfloor $ to change the grid coarsity. Similarly, we varied the parameter $c$ in $D_{\max} = \lfloor \sqrt{n/c} \rfloor$ for RIC. The parameter $s$ in RDC should be set around $1/6$ when comparing variables \cite{Lopez-paz2013}. In order to identify the best parameter settings for power in RDC, we explored values around $1/6$ by varying $\tilde{p}$ in $s = \frac{1}{6} \cdot \tilde{p}$. Similarly, the kernel widths in HSIC are usually set to the median distance of the data points according $X$ and according $Y$. This is why we explored the values $\sigma_X = \textup{med. dist. in } X \cdot \tilde{p}$ and $\sigma_Y = \textup{med. dist. in } Y \cdot \tilde{p}$. The parameter $\tilde{p}$ can be seen as a percentage of the default parameters.  According to our analysis, it is beneficial to tune parameters to target independence between $X$ and $Y$ for some measures. For example, a bigger number of nearest neighbors is beneficial to $I_{k\textup{NN}}$ to achieve more power under the additive noise model. This was also discussed in the original paper: \cite{Kraskov2004}. Furthermore, measures which make use of kernels should employ kernels with larger width to maximize power under additive noise. Even though these parameters cannot be tuned on a new data set because the task is unsupervised, the analysis we provide here might guide the user when the particular noise model is known for a new data set to analyze.
+\begin{figure}[H]
+\centering
+\includegraphics[angle=90,scale=.56]{figures/resultsPower}
+\caption{Power in the \textbf{addive noise} scenario with optimal parameters (best viewed in color).}\label{fig:aucAdditive}
+\end{figure}
+\begin{figure}[H]
+\centering
+\includegraphics[angle=90,scale=.56]{figures/resultsPowerWhite}
+\caption{Power in the \textbf{white noise} scenario with optimal parameters (best viewed in color).}\label{fig:aucWhite}
+\end{figure}
+\begin{figure}[H]
+\centering     %%% not \center
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneRIC}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneTIC}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneGMIC}}
+\\
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneIknn}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneIkde}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneIew}}
+\\
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneIef}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneRDC}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneMIC}}
+\\
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneHSIC}}
+\caption{Parameter tuning to maximize the power of each measure on average for the \textbf{additive} noise model when comparing \textbf{variables}. These plots show the average area under power curve and their average across relationship types. }\label{fig:tuningPower} 
+\end{figure}
+\begin{figure}[H]
+\centering     %%% not \center
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneRICw}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneTICw}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneGMICw}}
+\\
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneIknnw}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneIkdew}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneIeww}}
+\\
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneIefw}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneRDCw}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneMICw}}
+\\
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneHSICw}}
+\caption{Parameter tuning to maximize the power of each measure on average for the \textbf{white} noise model when comparing \textbf{variables}. These plots show the average area under power curve and their average across relationship types. }\label{fig:tuningPowerWhite} 
+\end{figure}
+
+As discussed in Section \ref{sec:vardecrease}, increasing $K_r$ for RIC helps to decrease its variance. This is particularly important in order to achieve power when testing against independence. Figure \ref{fig:RICtune100} and \ref{fig:RICtune1000} show the area under power curve for each relationship tested in this paper and their average at the variation of $K_r$ for RIC. Increasing $K_r$ is very beneficial to increase power when the number of data points is small: $n = 100$. This is an interesting feature of RIC. Increasing $K_r$ gives more power but also increases the computational running time. Nonetheless, higher $K_r$ is needed only if the sample size is small.
+\begin{figure}[h]
+\centering
+\subfloat[Power of RIC at small sample size: $n = 100$.]{\label{fig:RICtune100}\includegraphics[scale=.97]{figures/TuneRICn100}}
+\subfloat[Power of RIC on larger samples: $n = 1,000$.]{\label{fig:RICtune1000}\includegraphics[scale=.97]{figures/TuneRICn1000}}
+\caption{The power against independence of RIC always increases at the increase of $K_r$ because its variance decreases. This is particularly important when the number of data points is small: e.g., $ n = 100$.}
+\end{figure}
+
+Figures~\ref{fig:aucAdditive} and \ref{fig:aucWhite} show the performance of each measures with optimal parameters; regarding RIC, $D_{\max} = \lfloor \sqrt{n/4} \rfloor$ and $K_r = 200$. In order to compare the different measures on multiple data sets (relationships) we use the framework proposed in \cite{Demvsar2006}: we show the average rank across data sets for each measure. Moreover, in order to provide graphical intuition about their performance, we show their average rank sorted in ascending order using bar plots. Figure \ref{fig:histAdd} present the performances on the \emph{additive noise model}. RIC computed with $D_{\max} = \lfloor \sqrt{n/4} \rfloor $ and $K_r = 200$ shows very competitive performance.
+%\begin{figure}[t]
+%\centering
+%\includegraphics[scale=.5]{SumAdditive_All}
+%\caption{Average power across relationships for the \textbf{additive noise} at each level of noise (best viewed in color). }\label{fig:SumPowerAdd}
+%\end{figure}
+\begin{figure}[ht]
+\centering 
+\includegraphics[scale=.85]{figures/HistPerfPower}
+\caption{Average rank of measures across relationships when the target is power maximization under the additive noise model. RIC with $D_{\max} = \lfloor \sqrt{n/4} \rfloor $ and $K_r = 200$ is very competitive in this scenario.}\label{fig:histAdd}
+\end{figure}
+
+RIC outperforms all mutual information estimators, in particular the discretization based $I_{\textup{ew}}$, $I_{\textup{ef}}$, $I_{\textup{A}}$, and the $k$NN based $I_{k\textup{NN}}$. The kernel based density estimator $I_{\textup{KDE}}$ looks more competitive in noisy scenarios than all the other mutual information estimators, as also pointed out in \cite{Khan2007}. The performance of $I_{\textup{mean}}$ is particularly surprising: even if $I_{\textup{mean}}$ is a smooth estimator of mutual information, which guarantees low variance, it cannot discriminate very noisy relationships well. A careful look at its derivation reveals that $I_{\textup{mean}}$ takes into account $k$NN with $k$ very large, e.g.\ $k = n-1$. In fact, even $I_{k\textup{NN}}$ in this case cannot discriminate between noise and noisy relationships. MIC with parameters optimized for independence testing shows to outperform distance correlation. MIC outperforms GMIC with parameter $p=-1$ when the parameter $\alpha$ is tuned independently for both of them. In particular, MIC obtains its optimum at $\alpha = 0.35$ and GMIC at $\alpha = 0.65$. The comparison carried out in \cite{Luedtke2013} considered $\alpha = 0.6$ for both measures, concluding that GMIC was superior with this setting. The new information theoretic based measure MID also presents less competitive discrimination ability on this set of relationships because it is better suited for the white noise model. RDC achieves good results overall, in particular on the scenarios where it seems possible to linearize the relationship via a random projection: low frequency sinusoids and circle relationships. When the relationship is linear, $r^2$ is the best choice in terms of discrimination ability. This
+property reflects the motivation for dCorr, which was proposed as a distance based extension to the non-linear scenarios: its performance is very competitive on the linear, and 4th root case. However, it fails in the high frequency sinusoidal case and circle relationship. The best measure among the competitors is the newly proposed TIC$_e$ which is explicitly designed for independence testing. These results indicate that when the purpose is to identify an arbitrary relationship in the additive noise scenario, RIC delivers extremely competitive performance on average. If the user is interested in a specific relationship type, it will be best to choose a particular dependency measure known to be specifically good for that scenario. The results in Figures~\ref{fig:aucAdditive} and \ref{fig:aucWhite} may help guide the user in this choice.
+
+RIC also shows good performance under the \emph{white noise} model but it is outperformed by HSIC. Average results with optimal parameters for each measure are shown in Figure \ref{fig:histWhite}. Regarding the grid estimators of mutual information, RIC, TIC$_e$, MIC, and MID, a denser grid is better suited for the white noise scenario because points are uniformly distributed on the joint domain $(X,Y)$. %Indeed, the mutual information dimension (MID) which uses very dense grids obtains very good results among the new information theoretic measures. RIC with $D_{\max} = \lfloor \sqrt{n} \rfloor$ rather than with $D_{\max} = \lfloor \sqrt{n/5} \rfloor$ is indeed statistically better than any other measure according to the Wilcoxon's test at level $\alpha = 0.05$. Under the white noise model, MIC shows the worst results on average among the non-linear measures and its enhanced version GMIC does not perform well either. MIC is not suited for low signal to noise ratio scenarios (see also \cite{DavidTalk2014} slide 32).
+$I_{k\textup{NN}}$ presents competitive performance under white noise when $k$ is small. As in the additive noise model, TIC$_e$ proved to be strong competitor to RIC in this scenario. Instead, dCorr seems to be little competitive under the white noise model.
+%We also observe that the discretization based estimators of mutual information use the same maximum number of bins $D = \lfloor \sqrt{n/5} \rfloor $ (fixed) as the less competitive version of RIC (plotted in red). The superior performance of RIC to these estimators is therefore only due to the variance decrease obtained via random grids.
+HSIC with very small kernel width performs the best under white noise.
+%\begin{figure}[t]
+%\centering
+%\includegraphics[scale=.5]{SumAdditive_All_white}
+%\caption{Average power across relationships for the \textbf{white noise} at each level of noise (best viewed in color). }\label{fig:SumPowerWhite}
+%\end{figure}
+\begin{figure}[ht]
+\centering 
+\includegraphics[scale=.85]{figures/HistPerfPowerWhite}
+\caption{
+Average rank of measures across relationships when the target is power maximization under the white noise model. RIC with $D_{\max} = \lfloor \sqrt{n*10} \rfloor $ and $K_r = 200$ is competitive but yet it is outperformed by HSIC.}\label{fig:histWhite}
+\end{figure}
+
+%We note that some of the measures can and should be tuned to decrease their variance at the cost of bias if possible. For example, we can decrease the variance of RIC by decreasing $D_{\max}$ at the cost of misidentification of more complex relationships and at the cost of inferior performance under the white noise scenario. A large $K_r$ is instead always beneficial in terms of accuracy. Nonetheless, the use of the default setting $D_{\max} = \lfloor \sqrt{n} \rfloor$ and $K_r = 20$ in our experiments enables RIC to show reasonable performance for all types of relationships. Since its computation is also very fast, the result indicates it is the most appropriate general purpose measure to assess dependencies in both the additive and white noise models.
+
+\subsection{Application to Network Inference } \label{sec:genetic}
+
+We next employ the measures for biological network reverse engineering, which is a popular and successful application domain for dependency measures \citep{Villaverde2013}.  The applications include cellular, metabolic, gene regulatory, and signaling networks. Each of the $m$ variables is associated with a time series of length $n$. In order to identify the strongest relationships between variables (e.g., genes), a dependency measure $\mathcal{D}$ is employed. % by comparing the pair of associated time series $X(t)$ and $Y(t)$.
+Due to the natural delay of biochemical interactions in biological networks, the strongest dependency might occur only after some time \citep{Vinh12}. For this reason, we incorporate time delay into the dependency measures as $\mathcal{D}_{\textup{delayed}} = \max_{ \tau \in [-\tau_m,+\tau_m]}{ \mathcal{D}\left( X(t-\tau),Y(t) \right)}$, where $\mathcal{D}$ is any measure from Table \ref{tbl:measures} and $\tau_m$ is the maximum time delay. We collected 10 data sets where the true interactions between the variables are known. A dependency measure is effective on this task if its output is high on real interactions (\emph{positive} class) and low on non-interacting pairs of variables (\emph{negative} class). We evaluate the performance of a measure with the average precision (AP), also known as the area under the precision-recall curve. In order to obtain meaningful comparisons and perform statistical hypothesis testing, we performed 50 bootstrap repetitions for each data set and computed the mean AP (mAP) across the repetitions. 
+
+We made use of the  MIDER framework \citep{Villaverde2014} for evaluating the performance of dependency measures. The first 7 data sets were retrieved from the MIDER framework. The last 3 data sets were  generated using SynTren \citep{Syntren}, a generator of synthetic gene expression data. \textbf{SynT1} and \textbf{SynT1-s} were generated starting from the Escherichia coli transcriptional regulatory network provided with the framework with default noise parameters where \textbf{SynT1-s} has shorter time series. \textbf{SynT2} was generated starting from the synthetic direct acyclic graph provided with the framework. Based on the data sampling rate, we set $\tau_m = 3$ for these data sets, which cover most plausible time-delayed interactions. Table \ref{tbl:summaryData} shows a summary of the data sets used.
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{llrr}
+\multicolumn{4}{c}{Network Inference data sets}\\
+\toprule
+\# & Name & $n$ & $m$ \\
+\toprule
+1 & \textbf{Glycolysis} & 57 & 10 \\
+2 & \textbf{Enzyme-cat} & 250 & 8 \\
+3 & \textbf{Small-chain} & 100 & 4 \\
+4 & \textbf{Irma-on-off} & 125 & 5 \\
+5 & \textbf{Mapk} & 210 & 12 \\
+6 & \textbf{Dream4-10} & 105 & 10 \\
+7 & \textbf{Dream4-100} & 210 & 100 \\
+8 & \textbf{SynT1} & 100 & 200 \\
+9 & \textbf{SynT1-s} & 30  & 200 \\
+10 & \textbf{SynT2} & 30 & 40 \\
+\hline
+\end{tabular}
+\quad \quad \quad \quad
+\begin{tabular}{llrr}
+\multicolumn{4}{c}{Regression data sets}\\
+\toprule
+\# & Name & $n$ & $m$ \\
+\toprule
+1 & \textbf{Pyrim} & 74 & 27 \\
+2 & \textbf{Bodyfat} & 252 & 14 \\
+3 & \textbf{Triazines} & 186 & 60 \\
+4 & \textbf{Wisconsin} & 194 & 32 \\
+5 & \textbf{Crime} & 111 & 144 \\
+6 & \textbf{Pole} & 1000 & 48 \\
+7 & \textbf{Qsar} & 384 & 482 \\
+8 & \textbf{Qsar2} & 384 & 186 \\
+\hline
+\end{tabular}
+\caption{Summary of the data sets used for network inference (left) and regression (right): $n$ is the data points and $m$ is the number of variables.} \label{tbl:summaryData}
+\end{table}
+
+The small amount of data available and the high amount of noise in biological time series posed a very challenging task for all statistics. Mutual information estimators have been extensively employed for this task \citep{Villaverde2013}. Just recently, HSIC has been tested on network inference \citep{Lippert2009} and even more recently dCorr has been shown to be competitive on this task \citep{Guo2014}. To our knowledge, there is no prior comprehensive survey of the performance of RDC, $I_{\textup{mean}}$, MIC, GMIC and MID on this task. We perform a comprehensive evaluation of RIC plus 14 other dependency measures on network inference. The results are shown in Table \ref{tbl:networks}.
+
+We use RIC with parameters $D_{\max} = \lfloor \sqrt{n} \rfloor$ and $K_r = 20$ because on these tasks it is important to achieve high discrimination between strong relationships as well as weak relationships.
+% With these parameters RIC, while achieving low variance, can still exploit the strengths of mutual information.
+Figure \ref{fig:MAP} presents the average rank of the measures across all tested networks. Overall, RIC performs consistently well across all data sets.
+%We performed a paired Wilcoxon signed-rank test between RIC and other measures by pairing their AP on each bootstrap repetition. RIC was found to be better than any other measure at the $\alpha = 0.05$ statistical significance level.
+It outperforms by far all the discretization based mutual information estimators as well as other information theoretic based measures including MIC, GMIC and MID. Among the mutual information estimators, $I_{\textup{KDE}}$ and $I_{k\textup{NN}}$ show very good results. RIC's main competitor was dCorr, which also shows very good performance mainly due to the crucial importance of the linear relationships between variables. Its results are very correlated with $r^2$ results, which in some cases provides the best result for a single data set. This is mainly due to its high ability to discriminate linear relationships well. We found RIC particularly competitive on short time series with a large number of variables. 
+
+\begin{figure}[t]
+\centering     %%% not \center
+\includegraphics[scale=.85]{figures/MAPnetworks}
+\caption{Average rank across networks on the task of biological network with time inference. RIC outperforms on average all other measures.} \label{fig:MAP}
+\end{figure}
+As well known within the machine learning community, there is no ``free lunch''. In the context of this application, this wisdom is evident, observing in Table \ref{tbl:networks} that no method always performs the best or worst in every case. MID for example, is badly affected by additive noise commonly observed in biological time series and thus showed overall less competitive performance. Nonetheless, it achieved the best performance on \textbf{Irma-on-off}, an \textit{in vivo} yeast semi-synthetic network.
+%The integration of the prediction multiple measures, so called community learning, might indeed be beneficial in this case \cite{Marbach2012} but beyond the scope of this paper. % it pushed up the pair (1,5)
+
+\begin{landscape}
+\begin{table}                                                                                                                                                                                                                                                                         \scriptsize
+\caption{Mean average precision (mAP) on 10 networks: $n$ length of time series; $m$ number of variables. Each cell shows mAP $\pm$ std and either $(+)$,$(=)$, or $(-)$ means statistically greater, equal, or smaller according to the 1-sided paired $t$-test ($\alpha=0.05$) than RIC results.}
+\label{tbl:networks}
+%\begin{tabular}{p{.3cm}>{\raggedleft}p{1.4cm}p{1.4cm}p{1.4cm}p{1.4cm}p{1.4cm}p{1.4cm}p{1.4cm}p{1.29cm}p{1.29cm}p{1.4cm}}
+\begin{tabular}{p{.3cm}>{\raggedleft}p{1.9cm}>{\raggedleft}p{1.7cm}>{\raggedleft}p{1.9cm}>{\raggedleft}p{1.7cm}>{\raggedleft}p{1.7cm}>{\raggedleft}p{1.7cm}>{\raggedleft}p{1.7cm}
+>{\raggedleft}p{1.4cm}>{\raggedleft}p{1.5cm}>{\raggedleft\arraybackslash}p{1.7cm}}
+\toprule
+ &  \textbf{Glycolysis} & \textbf{Enzyme-cat} & \textbf{Small-chain} & \textbf{Irma-on-off} & \textbf{Mapk} & \textbf{Dream4-10} & \textbf{Dream4-100} & \textbf{SynT1} & \textbf{SynT1-s} & \textbf{SynT2}  \\
+ \hline
+$(n,m)$ & (57,10) & (250,8) & (100,4)  & (125,5) & (210,12) & (105,10) & (210,100) & (100,200) & (30,200) & (30,40) \\
+%$m$ & 10 & 8 & 4 & 5 & 12 & 10 & 100 & 200 & 200 & 40 \\
+\toprule
+RIC & 67.5$\pm$3.7 & 91.4$\pm$2.0 & 91.4$\pm$1.2 & 70.5$\pm$3.5 & 57.6$\pm$2.2 & 64.6$\pm$6.1 & 10.3$\pm$0.7 & \textbf{7.9}$\pm$0.4 & 6.6$\pm$0.7 & 14.1$\pm$3.8  \\
+dCorr & 67.8$\pm$3.0$(=)$ & 88.6$\pm$2.3$(-)$ & 91.7$\pm$0.0$(+)$ & 68.6$\pm$2.6$(-)$ & 50.0$\pm$1.0$(-)$ & \textbf{68.8}$\pm$5.9$(+)$ & \textbf{12.6}$\pm$0.6$(+)$ & 7.4$\pm$0.3$(-)$ & 6.7$\pm$0.6$(=)$ & \textbf{16.0}$\pm$2.5$(+)$  \\
+$I_{\textup{KDE}}$ & 67.9$\pm$3.7$(=)$ & \textbf{93.5}$\pm$2.1$(+)$ & 88.1$\pm$8.1$(-)$ & 71.5$\pm$5.6$(=)$ & 59.0$\pm$3.1$(+)$ & 61.1$\pm$7.0$(-)$ & 9.7$\pm$0.7$(-)$ & 7.8$\pm$0.3$(-)$ & 6.4$\pm$0.6$(=)$ & 10.2$\pm$1.8$(-)$  \\
+$I_{k\textup{NN}}$ & 65.5$\pm$4.6$(-)$ & 91.5$\pm$3.8$(=)$ & 90.0$\pm$5.1$(-)$ & 72.7$\pm$6.6$(+)$ & \textbf{68.8}$\pm$2.0$(+)$ & 51.4$\pm$6.1$(-)$ & 8.5$\pm$0.8$(-)$ & 7.8$\pm$0.4$(-)$ & 7.0$\pm$0.8$(+)$ & 10.3$\pm$1.8$(-)$  \\
+$r^2$ & \textbf{68.4}$\pm$2.7$(=)$ & 86.0$\pm$1.9$(-)$ & 91.7$\pm$0.0$(+)$ & 69.0$\pm$2.9$(-)$ & 46.9$\pm$1.3$(-)$ & 56.7$\pm$6.1$(-)$ & 12.5$\pm$0.6$(+)$ & 6.7$\pm$0.4$(-)$ & 6.3$\pm$0.6$(-)$ & 14.5$\pm$2.3$(=)$  \\
+RDC & 61.6$\pm$7.6$(-)$ & 89.2$\pm$4.4$(-)$ & 84.4$\pm$9.9$(-)$ & 68.3$\pm$5.3$(-)$ & 63.0$\pm$2.7$(+)$ & 57.8$\pm$4.7$(-)$ & 11.3$\pm$0.9$(+)$ & 6.8$\pm$0.7$(-)$ & 4.2$\pm$0.5$(-)$ & 10.4$\pm$2.7$(-)$  \\
+$I_{\textup{A}}$ & 62.4$\pm$4.6$(-)$ & 89.3$\pm$3.5$(-)$ & 82.7$\pm$10.8$(-)$ & 70.9$\pm$5.6$(=)$ & 57.7$\pm$3.5$(=)$ & 61.1$\pm$7.0$(-)$ & 9.4$\pm$0.6$(-)$ & 7.4$\pm$0.4$(-)$ & 4.6$\pm$0.6$(-)$ & 10.3$\pm$2.4$(-)$  \\
+$I_{\textup{ef}}$ & 62.3$\pm$4.3$(-)$ & 91.7$\pm$3.6$(=)$ & 86.4$\pm$7.5$(-)$ & 73.0$\pm$5.1$(+)$ & 56.0$\pm$3.0$(-)$ & 58.4$\pm$8.4$(-)$ & 9.3$\pm$0.6$(-)$ & 7.2$\pm$0.5$(-)$ & 4.5$\pm$0.7$(-)$ & 10.2$\pm$2.5$(-)$  \\
+$I_{\textup{ew}}$ & 63.5$\pm$4.7$(-)$ & 78.2$\pm$7.6$(-)$ & 90.9$\pm$2.1$(=)$ & 73.0$\pm$6.3$(+)$ & 50.6$\pm$2.2$(-)$ & 56.9$\pm$6.1$(-)$ & 10.1$\pm$0.8$(=)$ & 6.8$\pm$0.5$(-)$ & 4.0$\pm$0.4$(-)$ & 9.1$\pm$1.4$(-)$  \\
+MIC & 64.4$\pm$4.9$(-)$ & 75.9$\pm$9.6$(-)$ & 84.9$\pm$10.5$(-)$ & 71.2$\pm$5.5$(=)$ & 45.1$\pm$6.8$(-)$ & 56.1$\pm$8.8$(-)$ & 8.8$\pm$0.7$(-)$ & 6.8$\pm$0.5$(-)$ & 5.5$\pm$0.7$(-)$ & 10.1$\pm$1.9$(-)$  \\
+GMIC & 66.6$\pm$4.2$(=)$ & 89.0$\pm$3.8$(-)$ & 90.3$\pm$3.0$(-)$ & 68.8$\pm$3.7$(-)$ & 53.5$\pm$6.6$(-)$ & 57.2$\pm$4.2$(-)$ & 10.4$\pm$0.7$(=)$ & 7.3$\pm$0.5$(-)$ & 5.7$\pm$0.7$(-)$ & 12.5$\pm$2.8$(-)$  \\
+MID & 35.7$\pm$8.6$(-)$ & 47.4$\pm$11.7$(-)$ & 75.2$\pm$14.8$(-)$ & \textbf{79.5}$\pm$11.2$(+)$ & 37.5$\pm$4.8$(-)$ & 39.6$\pm$6.2$(-)$ & 3.9$\pm$0.4$(-)$ & 2.3$\pm$0.4$(-)$ & 1.6$\pm$0.1$(-)$ & 8.8$\pm$1.5$(-)$ \\
+ACE & 67.4$\pm$5.0$(=)$ & 88.5$\pm$6.2$(-)$ & 84.4$\pm$10.7$(-)$ & 75.6$\pm$7.0$(+)$ & 62.0$\pm$2.0$(+)$ & 53.8$\pm$7.0$(-)$ & 9.9$\pm$0.8$(-)$ & 7.4$\pm$0.4$(-)$ & 6.1$\pm$0.6$(-)$ & 11.0$\pm$2.4$(-)$  \\
+HSIC & 64.8$\pm$3.7$(-)$ & 87.7$\pm$3.8$(-)$ & 91.5$\pm$1.2$(=)$ & 68.4$\pm$2.4$(-)$ & 51.9$\pm$2.3$(-)$ & 64.5$\pm$5.7$(=)$ & 9.9$\pm$0.9$(-)$ & 7.5$\pm$0.7$(-)$ & \textbf{7.1}$\pm$1.1$(+)$ & 11.7$\pm$2.4$(-)$  \\
+$I_{\textup{mean}}$ & 46.8$\pm$2.0$(-)$ & 90.2$\pm$0.0$(-)$ & \textbf{91.6}$\pm$0.7$(=)$ & 69.6$\pm$3.4$(=)$ & 33.0$\pm$1.4$(-)$ & 65.4$\pm$5.6$(=)$ & 8.1$\pm$0.5$(-)$ & 4.6$\pm$0.2$(-)$ & 2.7$\pm$0.2$(-)$ & 7.5$\pm$0.9$(-)$  \\
+\end{tabular}
+\end{table}
+\end{landscape}
+
+\subsection{Feature Filtering for Regression} \label{sec:filtering}
+
+In this section, we evaluate the performance of RIC and the other statistics as feature filtering techniques. A dependency measure $\mathcal{D}$ can be used to rank the $m$ features $X_i$ on a regression task based on their prediction ability for the target variable $Y$. Only the top $m^{\star}$ features according to $\mathcal{D}$ are used to build a regressor  for $Y$. Table \ref{tbl:regression} shows the average correlation coefficient between the predicted and the actual target value using the top $m^{\star} \leq 10$ features using a $k$-NN regressor (with $k=3$). Each value is obtained by averaging 3 random trials of 10-fold cross-validation for each $m^{\star} \leq 10$.
+
+The data sets collected have at least 10 features and in the case of $n > 1000$ records, we randomly sampled 1000 records to speed up the running time of dCorr, HSIC, $I_{\textup{KDE}}$, $I_{\textup{mean}}$, MIC and GMIC with default parameters.
+%Only approximation or parallelization of MIC would allow reasonable computational time \cite{Zhang2014,Tang2014}.
+Records with missing values were deleted. We analyzed the performance on 8 data sets: 5 from the UCI machine learning repository\footnote{\scriptsize\url{http://ics.uci.edu/~mlearn}}, the \textbf{Pole} telecommunication data\footnote{\scriptsize\url{http://tunedit.org/}}, and 2 data sets \textbf{Qsar} and \textbf{Qsar2} from the website of the 3rd Strasbourg Summer School on Chemoinformatics\footnote{\scriptsize\url{http://infochim.u-strasbg.fr/}}. The list of data sets used is shown in Table \ref{tbl:summaryData}.
+
+\begin{figure}[ht]
+\centering     %%% not \center
+\includegraphics[scale=.82]{figures/HistPerf}
+\caption{Average rank of measures when the task is maximizing the correlation coefficient between the predicted and the target value of a $k$NN regressor. The the $k$NN regression is built on top of $m^{\star}$ features. Results were averaged across $m^{\star} \leq 10 $ and all data sets.}
+\label{fig:histFilt}
+\end{figure}
+
+As in section \ref{sec:genetic} we use RIC with parameters $D_{\max} = \lfloor \sqrt{n} \rfloor$ to avoid low density grids that are better suited for testing of independence tasks. Overall, as can be observed from Figure \ref{fig:histFilt}, RIC performs consistently well on average. RIC is also particularly useful when the number of features $m$ is high and especially when their relationships to the target variable $Y$ are noisy. These represent the most challenging scenarios as can be justified by the low correlation coefficient achievable using the selected features, e.g., on the \textbf{Pyrim} and \textbf{Triazines} data sets. We also note the good performance of RIC on data sets where there are features that can take only a predefined number of values: e.g., discrete numerical features. \textbf{Pole}, \textbf{Qsar}, and \textbf{Qsar2} include these type of features. For such features it is very difficult to either optimize a kernel or a grid size or find the optimal data transformation to obtain the maximal correlation with ACE, which explains the less competitive performance of HSIC, $I_{\textup{KDE}}$, $I_{\textup{A}}$, $I_{\textup{mean}}$, and ACE. RIC is not affected by this problem as there is no optimization and grids are generated at random.  
+
+\begin{landscape}
+\begin{table}
+\caption{Correlation coefficient between the predicted and actual target value on 8 data sets using $k$NN ($k = 3$). The values are the mean correlation coefficient across the $k$NN regressors built on top of $m^{\star}$ features with $m^{\star} \leq 10$. $n$ number of records; $m$ number of features. Each cell shows mean correlation coefficient $\pm $ std and either $(+)$,$(=)$, or $(-)$ means statistically greater, equal, or smaller according to the 1-sided paired $t$-test ($\alpha=0.05$) than RIC results.}
+\label{tbl:regression}
+\scriptsize
+\begin{tabular}{>{\raggedleft}p{.3cm}>{\raggedleft}p{2.3cm}>{\raggedleft}p{2.3cm}>{\raggedleft}p{2.3cm}>{\raggedleft}p{2.3cm}>{\raggedleft}p{2.3cm}
+>{\raggedleft}p{2.3cm}>{\raggedleft}p{2.3cm}>{\raggedleft\arraybackslash}p{2.3cm}}
+\toprule
+ &\textbf{Pyrim} &\textbf{Bodyfat} &\textbf{Triazines} & \textbf{Wisconsin} & \textbf{Crime} & \textbf{Pole}  & \textbf{Qsar} &\textbf{Qsar2} \\
+ \hline
+ $(n,m)$ & (74,27)	& (252,14) & (186,60) & (194,32) & (111,144) & (1000,48) & (384,482) & (384,186) \\
+% $m$ & 27 & 14 & 60 & 32 & 144 & 48 & 482 & 186 \\
+ \toprule
+RIC &\textbf{0.261}$\pm$0.120 &0.642$\pm$0.115 &\textbf{0.215}$\pm$0.120 &0.034$\pm$0.013 &0.892$\pm$0.042 &0.685$\pm$0.156 &0.277$\pm$0.091 &\textbf{0.479}$\pm$0.053 \\
+dCorr &0.205$\pm$0.046$(-)$ &0.643$\pm$0.114$(=)$ &0.118$\pm$0.062$(-)$ &0.041$\pm$0.012$(=)$ &0.852$\pm$0.057$(-)$ &0.686$\pm$0.218$(=)$ &\textbf{0.310}$\pm$0.025$(+)$ &0.382$\pm$0.130$(-)$ \\
+$I_{\textup{KDE}}$ &0.231$\pm$0.068$(-)$ &0.635$\pm$0.117$(-)$ &0.148$\pm$0.095$(-)$ &0.039$\pm$0.012$(=)$ &0.614$\pm$0.047$(-)$ &0.686$\pm$0.221$(=)$ &0.291$\pm$0.029$(=)$ &0.424$\pm$0.151$(-)$ \\
+$I_{\textup{kNN}}$ &0.216$\pm$0.051$(-)$ &0.639$\pm$0.116$(-)$ &0.098$\pm$0.035$(-)$ &0.038$\pm$0.011$(=)$ &0.893$\pm$0.051$(=)$ &0.621$\pm$0.134$(-)$ &0.300$\pm$0.094$(+)$ &0.423$\pm$0.025$(-)$ \\
+$r^2$ &0.264$\pm$0.064$(=)$ &\textbf{0.644}$\pm$0.114$(=)$ &0.125$\pm$0.050$(-)$ &0.041$\pm$0.009$(+)$ &0.870$\pm$0.045$(-)$ &0.414$\pm$0.311$(-)$ &0.273$\pm$0.037$(=)$ &0.375$\pm$0.134$(-)$ \\
+RDC &0.206$\pm$0.052$(-)$ &0.642$\pm$0.115$(=)$ &0.199$\pm$0.079$(=)$ &0.017$\pm$0.008$(-)$ &0.891$\pm$0.042$(=)$ &0.679$\pm$0.197$(=)$ &0.280$\pm$0.058$(=)$ &0.430$\pm$0.060$(-)$ \\
+$I_{\textup{A}}$ &0.235$\pm$0.088$(=)$ &0.640$\pm$0.115$(=)$ &0.062$\pm$0.047$(-)$ &0.037$\pm$0.021$(=)$ &0.891$\pm$0.041$(=)$ &0.010$\pm$0.007$(-)$ &0.284$\pm$0.042$(=)$ &0.418$\pm$0.046$(-)$ \\
+$I_{\textup{ef}}$ &0.190$\pm$0.068$(-)$ &0.640$\pm$0.116$(=)$ &0.171$\pm$0.053$(-)$ &0.036$\pm$0.015$(=)$ &0.889$\pm$0.041$(-)$ &0.693$\pm$0.156$(=)$ &0.278$\pm$0.104$(=)$ &0.429$\pm$0.028$(-)$ \\
+$I_{\textup{ew}}$ &0.249$\pm$0.064$(=)$ &0.641$\pm$0.115$(=)$ &0.188$\pm$0.097$(-)$ &0.033$\pm$0.007$(=)$ &0.859$\pm$0.059$(-)$ &0.661$\pm$0.145$(-)$ &0.264$\pm$0.085$(-)$ &0.441$\pm$0.046$(-)$ \\
+MIC &0.186$\pm$0.072$(-)$ &0.642$\pm$0.114$(=)$ &0.051$\pm$0.023$(-)$ &0.010$\pm$0.009$(-)$ &0.776$\pm$0.040$(-)$ &0.694$\pm$0.156$(=)$ &0.293$\pm$0.030$(=)$ &0.448$\pm$0.039$(-)$ \\
+GMIC &0.206$\pm$0.069$(-)$ &0.634$\pm$0.118$(-)$ &0.141$\pm$0.056$(-)$ &0.026$\pm$0.005$(-)$ &0.803$\pm$0.055$(-)$ &0.734$\pm$0.179$(+)$ &0.292$\pm$0.058$(=)$ &0.468$\pm$0.054$(-)$ \\
+MID &0.241$\pm$0.167$(=)$ &0.605$\pm$0.137$(-)$ &0.160$\pm$0.062$(-)$ &\textbf{0.047}$\pm$0.030$(+)$ &0.178$\pm$0.047$(-)$ &\textbf{0.808}$\pm$0.215$(+)$ &0.194$\pm$0.130$(-)$ &0.186$\pm$0.074$(-)$ \\
+ACE &0.221$\pm$0.051$(-)$ &0.641$\pm$0.115$(=)$ &0.111$\pm$0.073$(-)$ &0.011$\pm$0.008$(-)$ &\textbf{0.894}$\pm$0.042$(=)$ &0.000$\pm$0.000$(-)$ &0.270$\pm$0.056$(=)$ &0.439$\pm$0.023$(-)$ \\
+HSIC &0.174$\pm$0.068$(-)$ &0.638$\pm$0.116$(=)$ &0.057$\pm$0.063$(-)$ &0.028$\pm$0.011$(-)$ &0.853$\pm$0.046$(-)$ &0.000$\pm$0.000$(-)$ &0.001$\pm$0.001$(-)$ &0.000$\pm$0.000$(-)$ \\
+$I_{\textup{mean}}$ &0.178$\pm$0.073$(-)$ &0.636$\pm$0.117$(-)$ &0.073$\pm$0.076$(-)$ &0.034$\pm$0.011$(=)$ &0.853$\pm$0.046$(-)$ &0.000$\pm$0.000$(-)$ &0.001$\pm$0.001$(-)$ &0.001$\pm$0.000$(-)$
+\end{tabular}
+\end{table}
+\end{landscape}
+
+\subsection{Run Time Comparison}
+Here we compare the running times of each measure in Table \ref{tbl:measures} varying the amount of records $n$ on two independent variables $X$ and $Y$ uniformly distributed. The average run time on 30 simulations is shown in Figure \ref{fig:time} for each measure.  RIC is very competitive in terms of speed and can be grouped with the fastest measures: $I_{\textup{ef}}$, $I_{\textup{ew}}$, $I_{k\textup{NN}}$, $I_{\textup{A}}$, $r^2$, MID, ACE, and RDC. On the other hand, dCorr, $I_{\textup{KDE}}$, HSIC, $I_{\textup{mean}}$, MIC, GMIC, and TIC$_e$ appear to be slower according to the implementations discussed at the beginning of Section \ref{sec:experimentsTwoVar} and the parameter setting from Table \ref{tbl:measures}. As discussed in the related work section, different parameter setting yield more competitive running times for some measures. For example, TIC$_e$ can obtain close to linear complexity in the number of records if $\alpha = 0.2$. In our analysis, we chose to set $\alpha = 0.65$ because it is the choice that allows us to maximize power when testing for independence under additive noise.
+%\begin{figure}[h]
+%\centering
+%\includegraphics[scale=.75]{Time}
+%\caption{Time in seconds for each measure (best viewed in color).}\label{fig:time}
+%\end{figure} 
+%\begin{SCfigure}[][h]
+%\includegraphics[scale=0.65]{timeRIC}
+%\caption{$R^2$ between the predicted and the target value on the $k$NN regression built on top of $m^{\star}$ features. Results are averaged across data sets. RIC outperforms on average all other measures according to the Wilcoxon signed-rank test by pairing $R^2$ results for each fold of the cross validation ($\alpha = 0.05$). Best viewed in colors.}
+%\label{fig:timeRIC}
+%\end{SCfigure}
+
+\begin{figure}[ht]
+\centering
+\subfloat[Time for each measures with parameters in Table \ref{tbl:measures}]{\label{fig:time}\includegraphics[scale=.8]{figures/Time}}
+\subfloat[Time for RIC on \mbox{$n=10^3$} records.]{\label{fig:timeRIC}\includegraphics[scale=.8]{figures/TimeRIC}}
+\caption{Running time in seconds (best viewed in color).}
+\end{figure}
+
+Figure \ref{fig:time} shows the running time for RIC with default parameters $K_r = 20$ and $D_{\max} = \lfloor \sqrt{n} \rfloor$. Similarly to other measures, the running time for RIC depends to its parameter setting. Figure \ref{fig:timeRIC} shows the different time taken by RIC on $n=10^3$ records according to different $K_r$ and different $c$ where $D_{\max} = \lfloor \sqrt{n/c} \rfloor$. By increasing $K_r$ we increase the number of random grids and by increasing $c$ with decrease the grid coarsity. Figure \ref{fig:timeRIC} shows different plots at the variation of $K_r$ for $c = 4$, $c=1$, and $c=0.1$ which respectively yield to $D_{\max} = \lfloor \sqrt{n/4} \rfloor$, $D_{\max} = \lfloor \sqrt{n} \rfloor$, and $D_{\max} = \lfloor \sqrt{n \cdot 10} \rfloor$. These settings are respectively the ones we used for: independence testing under additive noise; network inference and feature filtering; and independence testing under white noise. The latter scenario proved to be the most challenging in terms of RIC running time.
+
+Large $K_r$ increases the computational time. Nonetheless, large $K_r$ is not always required. As discussed in Section \ref{sec:noisyandnot} even though it is always beneficial to increase $K_r$ to further decrease the variance of RIC, this is particularly important when $n$ is small. Thus, $K_r$ can always be tuned by the user according to the sample size of the data set analyzed and the disposable computational budget.
+
+\section{Experiments on Dependency Between Two Sets of Variables} \label{sec:experimentsSetsVar}
+
+In this section, we perform comparisons between the performance of measures which quantify the dependency between two sets of $p$ variables $\mathbf{X}$ and $q$ variables $\mathbf{Y}$. This is different from finding a subset of variables that are significantly correlated. In that case, new advances in that area yielded interesting measures to compare \citep{Hoang2014, Hoang2015}. In our paper, we compare the measures discussed in Table \ref{tbl:measures}. The Pearson's correlation coefficient, ACE, $I_{\textup{A}}$, MIC, GMIC, and MID are not applicable in these scenarios and there is no straightforward method to extend them to sets of variables available in literature.
+
+\subsection{Identification of Multi-variable Noisy Relationships}
+
+Here we extend the experiments of section \ref{sec:noisyandnot} to sets of variables $\mathbf{X}$ and $\mathbf{Y}$. In particular, we test the power in identifying relationships between $\mathbf{X}$ with $p=3$ variables and a single variable $Y$ with the additive noise model. In order to use the same 12 relationships displayed in Figure \ref{fig:experimentFunctions}, we map the set of features $\mathbf{X}$ on a single feature $X' = \frac{X_1+\dots + X_p}{p}$ and obtain $Y$ according a given relationship plus additive noise. Figure \ref{fig:exQuad} shows an example of a quadratic relationships between $Y$ and $\mathbf{X} = (X_1,X_2)$ ($p=2$) with additive noise.
+\begin{figure}[h]
+\centering
+\includegraphics[scale=.9]{figures/ExampleQuadratic}
+\caption{Example of a quadratic relationship between $Y$ and $\mathbf{X} = (X_1,X_2)$ on the left plot. The plot on the right shows how $Y$ is obtained through the mapping of $\mathbf{X}$ into $X'=\frac{X_1 + X_2}{2}$.}\label{fig:exQuad}
+\end{figure}
+
+We fix the number of variables $p=3$ for $\mathbf{X}$ because some measures require specific tuning in regards to the number of variables considered. For example, the most straightforward way to extend the discretization based estimators of mutual information $I_{\textup{ew}}$ and $I_{\textup{ef}}$ is to independently discretize all the variables in each set. This requires carefully choosing the number of discretization bins for each variable in $\mathbf{X}$ and each variable in $\mathbf{Y}$. If the same number of bins $D_X$ is chosen for all the variables in $\mathbf{X}$ and the same number of bins $D_Y$ is chosen for all the variables in $\mathbf{Y}$, it is possible to end up with as many as $D_X^p \cdot D_Y^q$ total bins. This issue makes it practically infeasible to use $I_{\textup{ew}}$ and $I_{\textup{ef}}$ in high $p,q$ scenarios. Given this limitation of the discretization based estimators of mutual information, we also made use of a multi-variable discretization approach of the set of variables $\mathbf{X}$ which allows a more sensible choice of the total number of bins. Even if methods for multi-variable discretization are available in literature \citep{Garcia2013,Dougherty1995} to our knowledge there is no extensive survey about the performance of estimation of mutual information with multi-variable approaches. Therefore, we chose to discretize $\mathbf{X}$ and $\mathbf{Y}$ with the clustering algorithm $k$-means and then compute the mutual information. We name this measure $I_{k-\textup{mean}}$. This allows us to choose the total number of bins (clusters) to be produced. In our case, where $p = 3$ and $q = 1$ we chose compute $I_{\textup{ew}}$ and $I_{\textup{ef}}$ fixing $D_Y = 5$ and compute $D_X$ in order to limit the number of total bins in regards to the number $n$ of data points:
+$D_X^p \cdot D_Y \leq \frac{n}{5} \Rightarrow D_X = \lfloor \frac{ \log{ n/25 } }{\log{p}} \rfloor$. When $n = 320$, $D_X = 2$.
+
+Power at level $\alpha = 0.05$ of discrimination between complete noise and noisy relationship for each relationship type presented in the paper is shown in Figure \ref{fig:aucAdditive_Multi}.
+%The relationship is between a uniformly generated variable $\mathbf{X}$ with $p = 3$ components and a single $Y$ ($q=1$).
+Parameter tuning for this task can be found in Figure \ref{fig:tuningMulti}. All the measures but $I_{\textup{KDE}}$ find similar optimal parameters when comparing single variables. $I_{\textup{KDE}}$ requires larger kernel width when comparing sets of variables. Furthermore, RDC seem to be little sensitive to the parameter $s$. In that case we optimized $s_X$ and $s_Y$ independently with $\tilde{p}$ where: $s_X = \frac{1}{6 p} \cdot \tilde{p} = \frac{1}{6 \cdot 3} \cdot \tilde{p}$ and $s_Y = \frac{1}{6 q} \cdot \tilde{p} = \frac{1}{6 \cdot 1} \cdot \tilde{p}$.
+
+
+Regarding RIC, in order to have full control on the number of bins produced, we compared the multi-variable dicretization approach that uses random seeds as described in Algorithm \ref{alg:dicsrSeeds}. More specifically, we fixed the number of random seeds to $ \lfloor \sqrt{n/c} \rfloor $ given that also choosing the number of random seeds at random might result in configurations with as few as 2 seeds, which strongly deteriorates the discrimination ability of mutual information on multiple variables. The parameter $c$ for RIC that maximizes the power on average is $c=6$ which generates $\lfloor \sqrt{n/6} \rfloor$ seeds. This setting is very similar to the optimal parameter setting found for testing for independence between variables under additive noise in Section \ref{sec:noisyandnot}. Most of the measures obtain similar optimal parameters to the ones obtained when testing for independence between variables. Just $I_{\textup{KDE}}$ seems to require even larger kernel width when comparing sets of variables. 
+
+Figures \ref{fig:histAdd_Multi} show average rank of each measure across different relationships. RIC with $D_{\max} = \lfloor \sqrt{n/6} \rfloor $ and $K_r = 200$ looks more competitive than all other measures but $I_{\textup{KDE}}$. Therefore, the strongest competitor seems to be $I_{\textup{KDE}}$ that with a careful choice of kernels achieves very good performance on simple relationships such as the linear, quadratic, and cubic. We also can see that the discretization based estimators of mutual information do not do a good job because they dramatically fail on some data set. Moreover, $I_{k-\textup{means}}$ which produces the same number of bins as RIC has clearly lower performance than the latter. The superior performance of RIC is thus due to the randomization.
+\begin{figure}[ht]
+\centering 
+\includegraphics[scale=.83]{figures/HistPerfPowerMulti}
+\caption{Average rank across relationships for the multi-variable additive noise model. RIC with $D_{\max} = \lfloor \sqrt{n/6} \rfloor $ and $K_r = 200$ shares the top position with $I_{\textup{KDE}}$.}\label{fig:histAdd_Multi}
+\end{figure}
+
+\begin{figure}[H]
+\centering     %%% not \center
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneRICs}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneIknns}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneIkdes}}
+\\
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneIkmeanss}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneRDCs}}
+\subfloat[]{\includegraphics[scale=.62]{figures/TuneHSICs}}
+\caption{Parameter tuning to maximize the power of each measure on average for the \textbf{additive} noise model when comparing \textbf{sets of variables}. These plots show the average area under power curve and their average across relationship types. }\label{fig:tuningMulti} 
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[angle=90,scale=.56]{figures/resultsPowerMulti}
+\caption{Power in the \textbf{addive noise} scenario when comparing \textbf{sets of variables} with optimal parameters (best viewed in color).}\label{fig:aucAdditive_Multi}
+\end{figure}
+
+\subsection{Feature Selection for Regression}
+
+We also tested multi-variable measures of dependency in the task of feature selection using a similar framework to section \ref{sec:filtering}. Rather than filtering the features according to their individual importance to the target variable $Y$, we proceed by forward selection. The optimal set of $p$ features according to a dependency measure is identified by finding the best set of features $\mathbf{X} = \mathbf{X}^{p-1} \cup X_i$, with $\mathbf{X}^{p-1}$ representing the set chosen at the previous iteration of forward selection and $X_i$ chosen among the possible $m - (p-1)$ features of a data set. A multi-variable dependency measure can be fully employed in this case because we require to compute the dependency between $\mathbf{X}$ features and the target variable $Y$ at each step of the iteration.
+
+As in section \ref{sec:genetic} and \ref{sec:filtering} we use RIC with parameters $D_{\max} = \lfloor \sqrt{n} \rfloor$ to avoid low density grids that are better suited for testing of independence tasks under additive noise. We use the random seeds discretization approach of Algorithm \ref{alg:dicsrSeeds} with a fixed number of random seeds. We also choose to fix $D_X = 2$ and $D_Y = 5$ for the naive discretization based estimators of mutual information. Average results for all the measures are shown in Figure \ref{fig:histSub} and a table with detailed comparisons is presented in Table \ref{tbl:regressionMulti}. We notice that the ranking by performance of classifier changes from the one obtained using the feature filtering approach, although RIC again shows competitive performance against the other approaches. All estimators of mutual information lose positions except for the $I_{\textup{KDE}}$ kernel based estimator. It seems that on multiple variables kernels are more effective than in the univariate scenario. Indeed, HSIC also gains a few positions. RDC's average performance stays the same and it still gets outperformed by dCorr. dCorr performs really well when computed on sets of variables. As previously noted, even in this case RIC outperforms $I_{k-\textup{means}}$ and this result is due to the randomized approach.
+
+\begin{figure}[H]
+\centering     %%% not \center
+\includegraphics[scale=.83]{figures/HistSub}
+\caption{Average rank when the target is maximization of the correlation coefficient between the predicted and the target value for a $k$NN regressor. The $k$NN regression is built on top of $m^{\star}$ features chosen by forward selection. Results are averaged across $m^{\star} \leq 10 $ and all data sets.}
+\label{fig:histSub}
+\end{figure}
+
+\begin{landscape}
+
+\begin{table}[ht]
+\caption{Correlation coefficient between the predicted and actual target value on 8 data sets using $k$NN ($k = 3$). The values are the mean correlation coefficient across the $k$NN regressors built on top of $m^{\star}$ features selected with forward selection with $m^{\star} \leq 10$. $n$ number of records; $m$ number of features. Each cell shows mean correlation coefficient $\pm $ std and either $(+)$,$(=)$, or $(-)$ means statistically greater, equal, or smaller according to the 1-sided paired $t$-test ($\alpha=0.05$) than RIC results.}
+\label{tbl:regressionMulti}
+\scriptsize
+\begin{tabular}{>{\raggedleft}p{.8cm}>{\raggedleft}p{2.2cm}>{\raggedleft}p{2.2cm}>{\raggedleft}p{2.2cm}>{\raggedleft}p{2.2cm}>{\raggedleft}p{2.2cm}
+>{\raggedleft}p{2.2cm}>{\raggedleft}p{2.2cm}>{\raggedleft\arraybackslash}p{2.2cm}}
+\toprule
+ &\textbf{Pyrim} &\textbf{Bodyfat} &\textbf{Triazines} & \textbf{Wisconsin} & \textbf{Crime} & \textbf{Pole}  & \textbf{Qsar} &\textbf{Qsar2} \\
+ \hline
+ $(n,m)$ & (74,27)	& (252,14) & (186,60) & (194,32) & (111,144) & (1000,48) & (384,482) & (384,186) \\
+% $m$ & 27 & 14 & 60 & 32 & 144 & 48 & 482 & 186 \\
+ \toprule
+ RIC &0.291$\pm$0.122 &0.668$\pm$0.106 &0.125$\pm$0.045 &0.050$\pm$0.014 &\textbf{0.931}$\pm$0.056 &0.778$\pm$0.235 &0.347$\pm$0.126 &0.401$\pm$0.026 \\
+$I_{\textup{ew}}$ &0.288$\pm$0.100$(=)$ &0.523$\pm$0.158$(-)$ &0.104$\pm$0.064$(-)$ &0.073$\pm$0.026$(+)$ &0.704$\pm$0.120$(-)$ &0.743$\pm$0.204$(-)$ &0.330$\pm$0.068$(=)$ &0.394$\pm$0.014$(=)$ \\
+$I_{\textup{ef}}$ &0.248$\pm$0.089$(-)$ &0.649$\pm$0.113$(-)$ &0.063$\pm$0.034$(-)$ &0.032$\pm$0.004$(-)$ &0.675$\pm$0.120$(-)$ &0.698$\pm$0.253$(-)$ &\textbf{0.358}$\pm$0.095$(=)$ &0.345$\pm$0.050$(-)$ \\
+$I_{k-\textup{means}}$ &\textbf{0.373}$\pm$0.100$(+)$ &0.663$\pm$0.108$(=)$ &0.093$\pm$0.047$(-)$ &0.038$\pm$0.008$(-)$ &0.781$\pm$0.016$(-)$ &0.763$\pm$0.198$(=)$ &0.224$\pm$0.083$(-)$ &0.329$\pm$0.030$(-)$ \\
+$I_{\textup{KDE}}$ &0.270$\pm$0.084$(=)$ &0.628$\pm$0.121$(-)$ &0.073$\pm$0.044$(-)$ &0.042$\pm$0.013$(=)$ &0.785$\pm$0.140$(-)$ &0.764$\pm$0.260$(=)$ &0.321$\pm$0.071$(=)$ &0.411$\pm$0.146$(=)$ \\
+$I_{\textup{kNN}}$ &0.261$\pm$0.073$(=)$ &0.637$\pm$0.117$(-)$ &0.049$\pm$0.021$(-)$ &0.027$\pm$0.012$(-)$ &0.510$\pm$0.288$(-)$ &\textbf{0.804}$\pm$0.217$(+)$ &0.278$\pm$0.061$(-)$ &0.391$\pm$0.030$(=)$ \\
+$I_{\textup{mean}}$ &0.293$\pm$0.122$(=)$ &0.626$\pm$0.019$(-)$ &0.107$\pm$0.035$(-)$ &0.032$\pm$0.015$(-)$ &0.905$\pm$0.140$(-)$ &0.425$\pm$0.102$(-)$ &0.182$\pm$0.102$(-)$ &0.232$\pm$0.053$(-)$ \\
+dCorr &0.275$\pm$0.063$(=)$ &\textbf{0.672}$\pm$0.104$(=)$ &0.104$\pm$0.054$(-)$ &\textbf{0.073}$\pm$0.016$(+)$ &0.920$\pm$0.053$(-)$ &0.772$\pm$0.279$(=)$ &0.352$\pm$0.054$(=)$ &0.362$\pm$0.129$(-)$ \\
+RDC &0.333$\pm$0.146$(+)$ &0.550$\pm$0.172$(-)$ &\textbf{0.173}$\pm$0.046$(+)$ &0.026$\pm$0.013$(-)$ &0.761$\pm$0.115$(-)$ &0.715$\pm$0.203$(-)$ &0.296$\pm$0.071$(-)$ &\textbf{0.415}$\pm$0.046$(+)$ \\
+HSIC &0.327$\pm$0.104$(=)$ &0.653$\pm$0.112$(-)$ &0.084$\pm$0.027$(-)$ &0.057$\pm$0.021$(=)$ &0.775$\pm$0.000$(-)$ &0.787$\pm$0.214$(=)$ &0.361$\pm$0.046$(=)$ &0.144$\pm$0.041$(-)$ \\
+\end{tabular}
+\end{table}
+
+\end{landscape}
+
+\section{Conclusions}
+
+In this chapter we presented the Randomized Mutual Information (RIC), an information theoretic measure of dependency between two sets random variables $\mathbf{X}$ and $\mathbf{Y}$, that makes use of an ensemble of random grids. Our theoretical analysis justifies the benefits of having a low-variance estimator of mutual information based on grids for the task of ranking relationships, where systematic biases cancel each other out. By reducing the estimation variance of mutual information with grids, RIC is extremely competitive for
+ranking different relationships.  We experimentally demonstrated its strong performance on univariate $X$ and $Y$ on the task of discrimination of noisy relationships, network inference and feature filtering for regression. We have shown that RIC can be extended to multivariate $\mathbf{X}$ and $\mathbf{Y}$ with a subtle discretization scheme. We recommend RIC's use with the default parameters: maximum number of random cut-offs $D_{\max} = \lfloor \sqrt{n} \rfloor$ and number of random discretizations $K_r = 20$ for both $\mathbf{X}$ and $\mathbf{Y}$ in general applications. However, $D_{\max}$ can be decreased when testing for independence under additive noise and $K_r$ can be increased to decrease the variance, at the cost of computational time. 

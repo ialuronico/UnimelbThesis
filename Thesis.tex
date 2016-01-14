@@ -1,0 +1,54 @@
+\documentclass[twoside,openright,titlepage,numbers=noenddot,headinclude,%
+               footinclude=true,cleardoublepage=empty,abstractoff,%BCOR=5mm,%
+               paper=a4,fontsize=12pt,american]{scrreprt}
+
+% Custom config ===============================================================
+
+% Classic thesis
+\input{classicthesis-config}
+\include{./format}
+
+
+% -----------------------------------------------------------------------------
+
+\begin{document}
+\frenchspacing
+\raggedbottom
+\selectlanguage{american}
+\pagenumbering{roman}
+\pagestyle{plain}
+
+
+% Front pages =================================================================
+\include{frontback/titlepage}
+%\cleardoublepage\include{frontback/disclaimer}
+%\cleardoublepage\include{frontback/jury}
+\cleardoublepage\include{frontback/abstract}
+%\cleardoublepage\include{frontback/publications}
+\cleardoublepage\include{frontback/declaration}
+\cleardoublepage\include{frontback/preface}
+\cleardoublepage\include{frontback/acknowledgments}
+\pagestyle{scrheadings}
+\cleardoublepage\include{frontback/toc}
+
+
+% Content =====================================================================
+\pagenumbering{arabic}
+
+\cleardoublepage
+\include{chapters/chapter01}\cleardoublepage
+\include{chapters/chapter02}\cleardoublepage
+\include{chapters/chapter03}\cleardoublepage
+\include{chapters/chapter04}\cleardoublepage
+
+% Back pages ==================================================================
+%\appendix
+%\cleardoublepage
+%\part*{Appendix}
+
+%\cleardoublepage\include{frontback/abbreviations}
+%\cleardoublepage\include{frontback/notations}
+\cleardoublepage\include{frontback/bibliography}
+
+
+\end{document}

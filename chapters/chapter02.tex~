@@ -1,0 +1,554 @@
+\chapter{Background}\label{ch:background}
+
+\begin{remark}{Outline}
+In this chapter, ...
+\end{remark}
+
+\section{Example Section} 
+Example table~\ref{tbl:ex}.
+
+\begin{table}
+\centering 
+\begin{tabular}{cp{13cm}} 
+\toprule
+\multicolumn{2}{l}{\textsc{Categorical Variables} } \\
+\toprule
+\multirow{3}{*}{\textit{\textbf{Nominal}}: }  & \specialcell{Limited number of values/categories/labels.\\ These values cannot be meaningfully ordered.}\\
+															 				& \textit{Mathematical operations}: $\{=,\neq\}$\\
+															 				& \textit{Examples}: zip codes, colors.\\
+\hline
+\multirow{3}{*}{\textit{\textbf{Ordinal}}: }  & Limited number of values/categories/labels. These values can be ordered.\\
+															 				& \textit{Mathematical operations}: $\{=,\neq\,<,\leq,>,\geq\}$\\
+															 				& \textit{Examples}: grades, street numbers.\\
+\toprule
+\multicolumn{2}{l}{\textsc{Numerical Variables} } \\
+\toprule
+\multirow{3}{*}{\textit{\textbf{Interval}}: }  & Discrete numerical domain \\
+															 				& \textit{Mathematical operations}: $\{=,\neq\,<,\leq,>,\geq\, +, -\}$\\
+															 				& \textit{Example}: calendar dates.\\
+\hline
+\multirow{3}{*}{\textit{\textbf{Ratio}}: }  & Continuous numerical domain.\\
+															 				& \textit{Mathematical operations}: $\{=,\neq\,<,\leq,>,\geq\, +, -,\times,:\}$\\
+															 				& \textit{Example}: temperature, weight.\\
+
+\end{tabular} 
+\caption{Example table.}
+\label{tbl:ex}
+\end{table}
+
+Dependency measures are fundamental in machine learning and data mining:
+\begin{definition}
+\quad \\
+A dependency measure $\mathcal{D}$ assesses the amount of dependency between variables.
+\end{definition}
+\noindent $\mathcal{D}(X,Y)$ can be computed between \emph{two variables} $X$ and $Y$: \eg if $X = \texttt{weight}$ and $Y = \texttt{height}$ then $\mathcal{D}(\texttt{weight},\texttt{height})$. $\mathcal{D}(\mathbf{X},\mathbf{Y})$ can also compute the amount of dependency between \emph{two sets of variables} $\mathbf{X} = \{ X_1,\dots,X_p \}$ with $p$ variables and $\mathbf{Y} = \{ Y_1,\dots,Y_q \}$ with $q$ variables: \eg if $\mathbf{X} = \{ \texttt{weight}, \texttt{height} \}$ and $\mathbf{Y} = Y = \texttt{Body Mass Index}$, then $\mathcal{D}(\{ \texttt{weight}, \texttt{height}\}, \texttt{Body Mass Index} )$.
+
+The true value $\mathcal{D}$ of a dependency measure can be computed when the true distribution of the variables compared is known. Nonetheless, on real tasks the true distribution of variables is unknown and dependency measures are \emph{estimated} on data sets $\mathcal{S}_n$. Let $\hat{\mathcal{D}}(\mathcal{S}_n|\mathbf{X},\mathbf{Y})$ be the \emph{estimator} of the dependency measure $\mathcal{D}$ between the two sets of variables $\mathbf{X}$ and $\mathbf{Y}$ on the data set $\mathcal{S}_n$. In this thesis, we focus on the properties of the estimators $\hat{\mathcal{D}}(\mathcal{S}_n|\mathbf{X},\mathbf{Y})$ of different dependency measures $\mathcal{D}$. If it is clear from the context, sometimes we omit the variables compared: \ie we use $\hat{\mathcal{D}}$ rather than the lengthy notation $\hat{\mathcal{D}}(\mathcal{S}_n|\mathbf{X},\mathbf{Y})$. In some sections where it is clear that the discussion is just about estimation of dependency measures, we also omit the symbol $\hat{\cdot}$ . 
+
+There exist a number of dependency measures in literature. These can be divided into dependency measures between categorical variables and dependency measures between numerical variables. We discuss dependency measures between categorical variables and in particular their estimators in Section \ref{sec:catdep}. Dependency measures between continuous variables and their estimators are discussed in Section \ref{sec:numdep}.
+
+\section{Dependency Measures between Categorical Variables} \label{sec:catdep}
+
+Let $X$ and $Y$ be two categorical variables on a data set consisting of $n$ objects. Let $U = \{ u_1,\dots,u_r\}$ and $V = \{ v_1,\dots,v_c\}$ be the the set of labels for $X$ and $Y$ respectively. $U$ consists of $r$ labels and $V$ of $c$ labels. Let $a_i$ be the number of objects in $\mathcal{S}_n$ labeled as $u_i$. Similarly, let $b_j$ be the number of objects in $\mathcal{S}_n$ labeled as $v_j$. Naturally, $\sum_{i=1}^r a_i = \sum_{j=1}^c b_j = n$ because both $U$ and $V$ induce a partition/clustering on the data set $\mathcal{S}_n$. Indeed, each label $u_i$ and $v_j$ corresponds to a set/cluster of objects in $\mathcal{S}_n$. Given that the labels $U$ and $V$ are applied to the same data set, it is possible to count the number of objects that are jointly labeled by $U$ and $V$. Let $n_{ij}$ denote the number of objects that are labeled as $u_i$ and as $v_j$. The co-occurrences of the different labels according to $U$ and to $V$ can be represented in matrix form by a $r \times c$ contingency table $\mathcal{M}$ such as the one in Table \ref{tbl:contingency}. We refer to $a_i = \sum_j n_{ij}$ as the row marginals and $b_j = \sum_i n_{ij}$ as the column marginals.
+\begin{table}[h]
+\centering
+\begin{tabular}{cc|c|ccccc|}
+\multicolumn{3}{c}{} & \multicolumn{5}{c}{  Variable $Y$ / Labels $V$     }\\
+%\cline{4-8}
+\multicolumn{3}{c}{ } & $v_1$ & $\cdots$ & $v_j$ & $\cdots$ & \multicolumn{1}{c}{$v_c$}\\
+\cline{4-8}
+\multicolumn{3}{c|}{ } & $b_1$ & $\cdots$ & $b_j$ & $\cdots$ & $b_c$ \\
+\cline{3-8}
+\multirow{2}{*}{     }  & $u_1$ & $a_1$ &
+$n_{11}$ & $\cdots$ & $\cdot$ & $\cdots$ & $n_{1c}$ \\
+%\cline{2-2}
+& $\vdots$ &
+ $\vdots$ &
+$\vdots$ &  & $\vdots$ &  & $\vdots$ \\
+%\cline{2-2}
+ Variable $X$ / Labels $U$  & $u_i$     & $a_i$ &
+$\cdot$ &  & $n_{ij}$ & & $\cdot$ \\
+%\cline{2-2}
+& $\vdots$ &
+ $\vdots$ &
+$\vdots$ & & $\vdots$ & & $\vdots$ \\
+%\cline{2-2}
+& $u_r$ & $a_r$ &
+$n_{r1}$ & $\cdots$ & $\cdot$ & $\cdots$ & $n_{rc}$ \\
+\cline{3-8}
+\end{tabular}
+\caption{$r \times c$ contingency table $\mathcal{M}$ related to two categorical variables $X$ and $Y$. $a_i  = \sum_j n_{ij}$ are the row marginals and $b_j = \sum_i n_{ij}$ are the column marginals.}
+\label{tbl:contingency}
+\end{table}
+Figure \ref{fig:extable} shows a toy example about a data set with $n = 8$ people and two variables.
+\begin{figure}[h]
+\begin{minipage}{0.35\textwidth}
+\footnotesize
+\quad \quad \quad \quad \quad \quad \quad \quad \quad 
+\begin{tabular}{|cc|}
+\hline
+\texttt{smoker} & \texttt{cough}  \\
+\hline
+No &  +\\ 
+No & -- \\ 
+Yes & + \\ 
+Yes & + \\ 
+No &  --\\ 
+No &  --\\ 
+Yes & +\\ 
+Yes & +\\ 
+\hline
+\end{tabular}
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
+\footnotesize
+\begin{table}[H]
+  \centering
+\begin{tabular}{cc|c|cc|}
+\multicolumn{3}{c}{ } & \multicolumn{2}{c}{ \texttt{cough} }\\
+\multicolumn{3}{c}{ } & + & \multicolumn{1}{c}{ - }\\
+\cline{4-5}
+\multicolumn{3}{c|}{ } & 5 & 3 \\
+\cline{3-5}
+\multirow{2}{*}{ \texttt{smoker}    } 
+& Yes & 4 &
+4 & 0 \\
+& No & 4 &
+1 & 3 \\
+\cline{3-5}
+\end{tabular}
+\end{table}
+\end{minipage}
+\caption{Example of data set $\mathcal{S}_n$ with $n = 8$ objects and $m = 2$ variables. The association between the variable \texttt{smoker} and \texttt{cough} is shown on the contingency table on the right.} \label{fig:extable}
+\end{figure}
+
+
+Dependency measures between two categorical variables $X$ and $Y$ can be naturally estimated on the associated contingency table $\mathcal{M}$. Here we discuss a number of possible measures of dependence between categorical variables on a data set $\mathcal{S}_n$.
+
+\subsection{Mutual Information} \label{sec:micat}
+
+Information theory provides a well-established measure of dependence between two categorical variables, the mutual information between $X$ and $Y$ \citep{Cover2012}. Mutual information is based on the concept of Shannon's entropy. The entropy for a categorical variable is defined as the expected value of its information content. Given the probability distribution for $X$ and $Y$ over their labels $U$ and $V$, we can therefore define their entropy as follows\footnote{All logarithms are considered in base 2, $\log \equiv \log_2$}:
+\begin{align} \label{eq:ent}
+H( X ) &\triangleq -\sum_{i=1}^r p_X(u_i) \log{ p_X(u_i)} \\
+H( Y ) &\triangleq -\sum_{j=1}^c p_Y(y) \log{ p_Y(y) }
+\end{align}
+Entropy is non-negative and it is equal to $0$ when a categorical variable takes only one single label. On the other hand, entropy is maximized when the probability distribution over labels is uniform. More specifically, we have $0 \leq H( X ) \leq \log r$ and $0 \leq H( Y ) \leq \log c$. The joint entropy between the two variables $X$ and $Y$ is defined as follows:
+\begin{equation}
+H(X,Y) \triangleq -\sum_{i=1}^r \sum_{j=1}^c p_{X,Y}(u_i,v_j) \log{ p_{X,Y}(u_i,v_j)} \\
+\end{equation}
+Moreover using conditional probabilities, it is possible to define the conditional entropy $H(X|Y)$ and $H(Y|X)$. The latter is defined as:
+\begin{equation}
+H(Y|X) \triangleq \sum_{i=1}^r p_X(u_i) H(Y| u_i) = -\sum_{i=1}^r p_X(u_i) \sum_{j=1}^c p_{Y|X}(v_j|u_i) \log{ p_{Y|X}(v_j|u_i)} \\
+\end{equation}
+Mutual information $I(X,Y)$ quantifies the value of information shared between the two variables $X$ and $Y$ and can be defined using the entropy definitions:
+\begin{align}
+I(X,Y)  &\triangleq H(Y) - H(Y|X) = H(X) - H(X|Y) \\
+&= H(X) + H(Y) - H(X,Y) = \sum_{i=1}^r \sum_{j=1}^c p_{X,Y}(u_i,v_j) \log{ \frac{p_{X,Y}(u_i,v_j)}{p_X(u_i) p_Y(v_j)}}
+\end{align}
+$I(X,Y)$ is a non-negative measure of dependency.
+
+Using the maximum likelihood estimation method, we estimate the empirical joint probability distribution of $X$ and $Y$ on the data set $\mathcal{S}_n$. This can also be computed using the cells of the associated contingency table: $ p_X(u_i) = \frac{a_i}{n}$, $p_Y(v_j) = \frac{b_j}{n}$, and $p_{X,Y}(u_i,v_j) = \frac{n_{ij}}{n}$.  Therefore, we denote as MI($X,Y$) the mutual information \emph{estimated} between two categorical variables $X$ and $Y$ on the contingency table $\mathcal{M}$:
+\begin{equation} \label{eq:mi}
+\mbox{MI}(X,Y) = \mbox{MI}(\mathcal{M}) = \sum_{i=1}^r \sum_{j=1}^c \frac{n_{ij}}{n} \log{ \frac{n_{ij}n}{a_i b_j} }
+\end{equation}
+Entropy and conditional entropy can be estimated on the contingency table as well:
+\begin{align}
+H(X) &= \sum_{i=1}^r \frac{a_j}{n} \log{\frac{a_i}{n}} \\
+H(Y) &= \sum_{j=1}^c \frac{b_j}{n} \log{\frac{b_j}{n}} \\
+H(Y|X) &= \sum_{i=1}^r \frac{a_i}{n} H(Y|u_i) = \sum_{i=1}^r \frac{a_i}{n} \sum_{j=1}^c \frac{n_{ij}}{a_i} \log{\frac{n_{ij}}{a_i}}
+\end{align}
+The mutual information has many possible upper bounds that might be used to obtain the Normalized Mutual Information (NMI) which ranges in $[0,1]$:
+\begin{equation}
+\mbox{NMI}(X,Y) = \frac{\textup{MI}(X,Y)}{\max{\textup{MI}(X,Y)}}
+\end{equation}
+where $\max{\textup{MI}(X,Y)}$ can be chosen among one of the following upper bounds to MI:
+\begin{align*} 
+\mbox{MI}(X,Y) &\leq \min{ \{ H(X), H(Y) \} } \leq \sqrt{ H(X) \cdot H(Y) } \leq \dots\\ 
+& \dots \leq \frac{1}{2} ( H(X) + H(Y) ) \leq \max{ \{ H(X), H(Y) \} } \leq H(X,Y) 
+\end{align*}
+Depending on the chosen upper bound, it is also possible to obtain information theoretic distance measures with metric properties \citep{Nguyen2010}. A distance measure with metric properties is indeed useful for designing efficient algorithms that exploit the nice geometric properties of  metric spaces \citep{Meila2012}. An example of a true metric is the variation of information (VI), defined in \citep{Meila2007}:
+\begin{align} \label{eq:vi}
+\mbox{VI}(X, Y) &\triangleq 2 H(X,Y) - H(X) - H(Y) = H(X|Y) + H(Y|X) \\
+&= H(X) + H(Y) - 2 \mbox{MI}(X,Y) \nonumber
+\end{align}
+
+\subsection{Pair-counting Measures} \label{sec:paircounting}
+
+Pair-counting measures between categorical variables are very common in the clustering community \citep{Albatineh2006, Meila2007}. Indeed, each variable $X$ and $Y$ can define a clustering on the data set $\mathcal{S}_n$ according to the labels $U$ and $V$ respectively. Pair-counting measures are computed on a contingency table $\mathcal{M}$ using the following quantities which counts pairs of objects in $\mathcal{S}_n$:
+\begin{itemize}
+\item $N_{11}$, the pairs in the same cluster in both $U$ and $V$;
+\item $N_{00}$, the pairs not in the same cluster in $U$ and not in the same cluster in $V$;
+\item $N_{10}$, the pairs in the same cluster in $U$ and not in the same cluster in $V$;
+\item $N_{01}$, the pairs not in the same cluster in $U$ and in the same cluster in $V$.
+\end{itemize}
+All these quantities can be computed using the contingency table $\mathcal{M}$:
+\begin{align*}
+N_{11} &= \frac{1}{2}\sum_{i=1}^r \sum_{j=1}^c n_{ij}(n_{ij} -1)\\
+N_{00} &= \frac{1}{2}\Big( n^2 + \sum_{i=1}^r \sum_{j=1}^c n_{ij}^2 - \Big( \sum_{i=1}^r a_i^2 + \sum_{j=1}^c b_j^2 \Big) \Big)\\
+N_{10} &= \frac{1}{2} \Big( \sum_{j=1}^c b_j^2 - \sum_{i=1}^r \sum_{j=1}^c n_{ij}^2 \Big)\\
+N_{01} &= \frac{1}{2} \Big( \sum_{i=1}^r a_i^2 - \sum_{i=1}^r \sum_{j=1}^c n_{ij}^2 \Big)\\
+\end{align*}
+It holds true that $N_{11} + N_{00} + N_{10} + N_{01} = \binom{n}{2}$. Using these quantities, it is possible to compute similarity measures, \eg the Rand Index (RI)~\citep{Rand1971}, or distance measures, \eg the Mirkin index $\mbox{MK}(X,Y) \triangleq \sum_{i} a_i^2 + \sum_j b_j^2 - 2\sum_{i,j} n_{ij}^2$, between partitions~\citep{Meila2007}:
+\begin{equation}
+\mbox{RI}(X,Y) \triangleq (N_{11} + N_{00})/\binom{n}{2}
+\end{equation}
+and 
+\begin{equation}
+\mbox{MK}(X,Y) = 2(N_{10} + N_{01}) = n(n-1)(1 - \mbox{RI}(X,Y))
+\end{equation}
+Another famous dependency measure which belongs in this category is the Jaccard similarity coefficient (J):
+\begin{equation}
+J(X,Y) = \frac{N_{11}}{N_{11} + N_{10} + N_{01}}
+\end{equation}
+
+\subsection{Accuracy and Agreement} \label{sec:agreement}
+
+If $X$ is the class predicted by a classification algorithm and $Y$ is the actual class, the classification accuracy can be seen as a measure of dependence between the variables $X$ and $Y$ \citep{Witten2011}. In this case, the two categorical variables share the same domain of labels: \ie $U = V$. Similarly, the amount of agreement between two annotators $X$ and $Y$ on a sample $\mathcal{S}_n$ of $n$ items can be seen as a measure of dependency. Classification accuracy and agreement are computed on a contingency table $\mathcal{M}$ with the following formula:
+\begin{equation}
+A(X,Y) = \sum_{i=1}^r \sum_{j=1}^c \frac{n_{ij}}{n}
+\end{equation}
+
+\subsection{Splitting Criteria in Classification Trees} \label{sec:splitcriteria}
+
+In some decision tree induction algorithms such as C4.5 \citep{Quinlan1993}, a categorical variable $X$ with $r$ categories induces a split on internal nodes in $r$ subsets. Splitting criteria evaluate the performance of a split and they can be considered as dependency measures between $X$ and the the class $Y$. Most of the splitting criteria are based on impurity measures $\mathit{Imp}(Y)$. These measures capture the amount of impurity for a given set of records $\mathcal{S}_n$ regarding the class attribute $Y$. Their value is 0 if all records are of the same class and they attain their maximum value if the class distribution is uniform. The average decrease of impurity of the class $Y$ due to a split on a categorical attribute $X$ is often used as a splitting criterion and referred to as gain $\Delta$:
+\begin{equation}
+\Delta(X,Y) = \mathit{Imp}(Y) - \sum_{i=1}^{r}\frac{a_i}{n} \mathit{Imp}(Y|u_i) \label{eq:gain}
+\end{equation}
+Various impurity measures have been used in literature. The most common impurity measures are:
+\begin{enumerate}
+	\item \textit{Entropy}: $$H(Y) = -\sum_{j=1}^{c}\frac{b_j}{n} \log{\frac{b_j}{n}}$$ 
+	\item \textit{Gini index}: $$ \mathit{Gini}(Y) = 1 - \sum_{j=1}^{c}\Big( \frac{b_j}{n}\Big)^2$$
+\end{enumerate} 
+If entropy is used as impurity measure the gain is usually called Information Gain (IG), and it is easy to show that it can be rewritten as the Mutual Information (MI) in Eq.\ \eqref{eq:mi}:
+\begin{align} \nonumber
+\mbox{IG}(X,Y) &= H(Y) - \sum_{i=1}^r \frac{a_i}{n} H(Y|u_i) = -\sum_{j=1}^{c}\frac{b_j}{n} \log{\frac{b_j}{n}} + \sum_{i=1}^r \frac{a_i}{n} \sum_{j=1}^{c}\frac{n_{ij}}{a_i} \log{\frac{n_{ij}}{a_i}}\\ \nonumber
+&= -\sum_{j=1}^{c} \sum_{i=1}^r \frac{n_{ij}}{n} \log{\frac{b_j}{n}} + \sum_{i=1}^r \sum_{j=1}^{c} \frac{n_{ij}}{n} \log{\frac{n_{ij}}{a_i}}\\
+ &= \sum_{i=1}^{r} \sum_{j=1}^{c} \frac{n_{ij}}{n} \log \frac{n_{ij} n}{a_i b_j}  = \mbox{MI}(X,Y)
+\end{align}
+The Gini Gain (GG) is instead defined as follows:
+\begin{equation} \label{eq:gg}
+\mbox{GG}(X,Y) = \mathit{Gini}(Y) - \sum_{i=1}^{r}\frac{a_i}{n}\mathit{Gini}(Y|u_i) = 1 - \sum_{j=1}^{c}\Big( \frac{b_j}{n}\Big)^2 - \sum_{i=1}^{r} \frac{a_i}{n} \bigg(1 - \sum_{j=1}^{c}\Big( \frac{n_{ij}}{a_i}\Big)^2 \bigg)
+\end{equation}
+These two criteria are respectively implemented in C4.5 \citep{Quinlan1993} and in CART \citep{cart84}.
+%Their main difference is that regarding binary splits \emph{Gini Index} prefers scenarios where the largest class is identified by only one pure subset $S_i$ and all others go to the other one. This is equivalent to say that MI prefers to balance the size of the split partitions
+When splits are induced by categorical variables with 2 categories, IG has been found to be more biased than GG to variables where the 2 categories are distribute uniformly \citep{Breiman96}. Recently the improved Grassberger's estimator of entropy $H_G$ for discrete variables has been proposed and plugged-in IG to improve classification accuracy of decision trees \citep{Nowozin2012}. The Grassberger's estimator of entropy $H_G$ is defined as follows:
+\[
+H_G(Y) = \log n - \sum_{j=1}^{c}\frac{b_j}{n}G(b_j)
+\text{\quad where\quad}
+G(b_j) = \psi(b_j) + \frac{1}{2}(-1)^{b_j} \Big( \psi \big( \frac{b_j + 1}{2} \big) - \psi \big( \frac{b_j}{2} \big) \Big)
+\]
+where $\psi$ is the digamma function. The $H_G$ estimator is claimed to be more effective when the variable $Y$ has many categories: \ie $ c \gg 1 $.
+%Splitting criteria have been blamed, recently and less recently, to be biased towards uninformative features which lead to performance degradation. A very noticeable bias is the one towards multi-valued features \cite{White1994,Kononenko1995}. This problem has been formally identified in \cite{Quinlan1993}: categorical attributes with more than two values ($ k > 2 $) are unfairly promoted if evaluated with MI. The solution adopted is easy implementative-wise: penalise those splits dividing MI by the information associated with
+Another splitting criterion based on the entropy estimator is the Gain Ratio (GR) \citep{Quinlan1993}. This was specifically designed to penalize variables $X$ with many categories and can be seen as a normalized mutual information:
+\begin{equation} \label{eq:gainratio}
+\mbox{GR}(X,Y) = \frac{\mbox{IG}(X,Y)}{H(X)}= \frac{\mbox{MI}(X,Y)}{H(X)} = \frac{\mbox{MI}(X,Y)}{-\sum_{i=1}^{r} \frac{a_i}{n} \log{ \frac{a_i}{n} }} 
+\end{equation}
+%However, the normalisation by the split entropy introduces another bias: very unbalanced splits where $s_i$ differ substantially have a very low entropy $H(\mathcal{S})$ that leads to a high GR score.
+Other splitting criteria are based on statistics, such as the chi-square statistic \citep{Kononenko1995}
+\[
+\chi^2(X,Y) = \sum_{i=1}^{r} \sum_{j=1}^{c} \frac{ (e_{ij} - n_{ij})^2}{e_{ij}}
+\text{\quad with \quad}
+ e_{ij} = \frac{a_i \cdot b_j}{n}
+\]
+and the $G$-statistic:
+\[
+G(X,Y) = 2 n \cdot \log_e{2} \cdot \mbox{MI}(X,Y) 
+\]
+%For example, the decision tree induction algorithm CHAID\citep{Chaid} uses a criterion based $\chi^2$ to split internal nodes.
+Some other splitting criteria are based on the Minimum Description Length principle (MDL). The MDL principle roughly states that the problem of selecting the best split might be solved selecting that one that leads to the biggest compression \citep{Kononenko1995}. Even if its formula is complicated, this is still a dependency measure between $X$ and $Y$ and can be computed on the associated contingency table $\mathcal{M}$:
+\begin{align*}
+\mbox{MDL}(X,Y) &= \frac{1}{n}\
+ \bigg(
+  \log \binom{N}{n_1, \dots, b_c} - \sum_{i=1}^{r} \log \binom{a_i}{n_{i1}, \dots, n_{ic}} + \\
+ &   \log \binom{n + c + 1}{c - 1} - \sum_{i=1}^{r}  \log \binom{a_i + c - 1}{c -1} \bigg) 
+\end{align*}
+
+\section{Dependency Measures between Numerical Variables} \label{sec:numdep}
+
+Let $\mathbf{X}$ and $\mathbf{Y}$ be sets of $p$ and $q$ numerical variables respectively. There exist a number of ways to assess the amount of dependency between them. Here we present a review of possible ways to estimate the dependency between $\mathbf{X}$ and $\mathbf{Y}$ on a data set $\mathcal{S}_n = \{ ( \mathbf{x},\mathbf{y})_k \}_{ k=0 \dots n-1} = \{( x_1\dots x_p, y_1 \dots y_q)_k \}_{ k=0 \dots n-1}$ of $n$ records.
+
+
+\subsection{Mutual Information} \label{sec:micont}
+
+We discussed the use of mutual information as a dependency measure between two categorical variables in Section \ref{sec:micat}. Mutual information is also a powerful tool to assess the dependency between numerical variables. Moreover, its definition can be extended to compare two sets of variables $\mathbf{X}$ and $\mathbf{Y}$. When the variables compared are numerical, mutual information is defined making use of the differential entropy which is defined as follows \citep{Cover2012}:
+\[
+h(\mathbf{X}) \triangleq - \int_{\textup{dom}(\mathbf{X})} f_{\mathbf{X}}(\mathbf{x}) \log{f_{\mathbf{X}}(\mathbf{x})} d\mathbf{x}
+\]
+where $f_{\mathbf{X}}(\mathbf{x})$ and $\mbox{dom}(\mathbf{X})$ are the density function and the domain of $\mathbf{X}$ respectively. The mutual information between the two sets of variables $\mathbf{X}$ and $\mathbf{Y}$ is defined as:
+\begin{equation} \label{eq:micont}
+I(\mathbf{X},\mathbf{Y}) \triangleq h(\mathbf{X}) + h(\mathbf{Y}) - h(\mathbf{X},\mathbf{Y}) = \int_{\textup{dom}(\mathbf{X})} \int_{\textup{dom}(\mathbf{Y})} f_{\mathbf{X},\mathbf{Y}}(\mathbf{x},\mathbf{y}) \log{ \frac{ f_{\mathbf{X},\mathbf{Y}}(\mathbf{x},\mathbf{y})}{f_{\mathbf{X}}(\mathbf{x})f_{\mathbf{Y}}(\mathbf{y}) }} d\mathbf{x} d\mathbf{y}
+\end{equation}
+
+Unlike the case for categorical variables, there are many estimators of mutual information for numerical variables on a data set $\mathcal{S}_n$. The standard approach however consists of
+discretizing the space of possible values that $\mathbf{X}$ and $\mathbf{Y}$ can take using a grid $G$, and then estimating the probability mass function using the frequency of occurrence. A grid $G$ for the sets of variables $\mathbf{X}$ of $\mathbf{Y}$ is the Cartesian product of the two partitions $G_X$ and $G_Y$.
+%: i.e.,\ $G = G_X \times G_Y$.
+$G_X$ is a partition of the domain of the variables in $\mathbf{X}$ in $r$ disjoint sets $u_i$. $G_Y$ is a partition of the domain of the variables in $\mathbf{Y}$ in $c$ disjoint sets $v_j$. When a grid $G$ is applied to a data set, we denote with $(\mathbf{X},\mathbf{Y})|G$ the contingency table between $\mathbf{X}$ and $\mathbf{Y}$. An example of contingency table can be found in Table \ref{tbl:contingency}. Using the associated contingency table, the mutual information can be estimated with the estimator in Eq.\ \eqref{eq:mi}. Nonetheless, there are many possible approaches to discretization of random variables. For example, a single random variable can be easily discretized according to equal-width or equal-frequency binning \citep{Steuer2002}. We refer to $I_{\textup{ew}}$ and $I_{\textup{ef}}$ as the estimators of mutual information using equal width binning and equal frequency binning respectively. Figure \ref{fig:exew} shows an example of equal width grid for the estimation of mutual information with contingency tables.
+\begin{SCfigure}[5][h]
+\centering
+\caption{Example of equal width grid $G$ to discretize the data set $\mathcal{S}_n$. Each variable $X$ and $Y$ is discretized in 3 equal width bins. Mutual information can be estimated on the associated contingency table. We refer to $I_{\textup{ew}}(X,Y) = \mbox{MI}\big( (X,Y)|G\big)$ as the equal width estimator of mutual information for numerical variables.}
+\includegraphics[scale=.7]{figures/grid}
+\label{fig:exew}
+\end{SCfigure}
+Discretization of single random variables can also be performed according to more complex principles such as the minimum description length \citep{Fayyad1993}. Mutual information estimators based on discretization in equal width intervals have been discussed in \cite{Steuer2002}. Particularly crucial is the choice of the number of bins used to discretize $X$ and $Y$: too big values lead to overestimation of mutual information due to a finite-sample effect. To mitigate this problem, adaptive partitioning of the discretization grid on the joint distribution $(X,Y)$ has been proposed \citep{Fraser1986} and optimized for speed \citep{Cellucci2005}. We note that there is no universally accepted optimal discretization technique. Moreover, even though for sets of variables $\mathbf{X}$ and $\mathbf{Y}$ few sensible discretization have been proposed \citep{Dougherty1995,Garcia2013}, to our knowledge, there is no extensive survey about the estimation of mutual information with multiple variable discretization approaches.
+
+Other competitive mutual information estimators used in practice are the kernel density estimator \citep{Moon1995} and the Kraskov's $k$ nearest neighbors estimator \citep{Kraskov2004}. These estimators can be used to compare sets of variables $\mathbf{X}$ and $\mathbf{Y}$. An extensive comparison of these estimators can be found in \cite{Khan2007}. The kernel density estimator $I_{\textup{KDE}}$ is computed using kernel functions $k(\cdot)$ to estimate the probability distributions $f_{\mathbf{X}}(\mathbf{x})$, $f_{\mathbf{Y}}(\mathbf{y})$, and $f_{\mathbf{X},\mathbf{Y}}(\mathbf{x},\mathbf{y})$:
+\[
+\hat{f}_{\mathbf{X}}(\mathbf{x}) = \frac{1}{n h} \sum_{i=0}^{n-1} k\left( \frac{\mathbf{x} - \mathbf{x}_i}
+{h}\right)
+\quad
+\hat{f}_{\mathbf{Y}}(\mathbf{x}) = \frac{1}{n h} \sum_{i=0}^{n-1} k\left( \frac{\mathbf{y} - \mathbf{y}_i}{h}\right)
+\]
+and
+\[
+\hat{f}_{\mathbf{X},\mathbf{Y}}(\mathbf{x},\mathbf{y}) = \frac{1}{n h} \sum_{i=0}^{n-1} k\left( \frac{\mathbf{x} - \mathbf{x}_i}{h}, \frac{\mathbf{y} - \mathbf{y}_i}{h}\right)
+\]
+where $h$ is a parameter which tunes the kernel width. The KDE estimator of the mutual information as theoretically defined in Eq.\ \eqref{eq:micont} is obtained by:
+\begin{equation} \label{eq:ikde}
+I_{\textup{KDE}}(\mathbf{X},\mathbf{Y}) \triangleq \frac{1}{n} \sum_{k=0}^{n-1} \log{ \frac{ \hat{f}_{\mathbf{X},\mathbf{Y}}(\mathbf{x}_k,\mathbf{y}_k)}{\hat{f}_{\mathbf{X}}(\mathbf{x}_k) \hat{f}_{\mathbf{Y}}(\mathbf{y}_k) }}
+\end{equation}
+The Kraskov's estimator is instead defined using the $k$ nearest neighbors for each point of the data set. Let $\epsilon_i$ be the euclidean distance of a point to its $k$-th nearest neighbor, and let $n_{\mathbf{x}_i}$ be the number of points at a distance less than or equal to $\epsilon_i / 2$, then:
+\begin{equation} \label{eq:ikrask}
+I_{k\textup{NN}}(\mathbf{X},\mathbf{Y}) \triangleq \psi(n) + \psi(k) - \frac{1}{k} - \frac{1}{n}\sum_{i=0}^{n-1} \psi(n_{\mathbf{x}_i})  +\psi(n_{\mathbf{y}_i})
+\end{equation}
+where $\psi$ is the digamma function. 
+
+The Kraskov's estimator for mutual information is based on the derivation of the $k$NN estimator of Shannon's entropy. The entropy for a set of variables $\mathbf{X} = (X_1,\dots,X_p)$ has its own estimator on a data set $\mathcal{S}_n$:
+\begin{equation} \label{eq:entk}
+H_{k\textup{NN}}(\mathbf{X}) \triangleq \psi(n) - \psi(k) + \log(c_p) + \frac{p}{n} \sum_{i=0}^{n-1} \log(\epsilon_i)
+\end{equation}
+where $\psi$ is the digamma function, $c_p$ is the volume of a $p$-dimensional unit ball and $\epsilon_i$ is the euclidean distance from $\mathbf{x}_i$ to its $k$-th nearest neighbor. Recently in \cite{Faivishevsky2009} it was shown that if we take the average of the $k$NN estimator of entropy defined in Eq.~\eqref{eq:entk} across all possible values $k$, we obtain the following smooth estimator of Shannon's entropy:
+\begin{equation}
+H_{\textup{mean}}(\mathbf{X}) = \mathit{const} + \frac{p}{n(n-1)} \sum_{i\neq j} \log || \mathbf{x}_i - \mathbf{x}_j||
+\end{equation}
+where the constant $\mathit{const}$ depends on the sample size and the data dimensionality, and $||\cdot||$ is the Euclidean distance. This idea yields yet another interesting estimator of mutual information -- the mean estimator of mutual information:
+\begin{equation}
+I_{\textup{mean}}(\mathbf{X},\mathbf{Y}) \triangleq H_{\textup{mean}}(\mathbf{X}) + H_{\textup{mean}}(\mathbf{Y}) - H_{\textup{mean}}(\mathbf{X},\mathbf{Y})
+\end{equation}
+
+
+%Mutual information has been successfully employed for a variety of applications, such as feature selection \cite{Vinh2014} and reverse engineering genetic networks \cite{Villaverde2013}. Given the evident number of application scenarios of mutual information and its undeniable efficacy, we choose to use the discretization-based MI estimator as the main building block of RIC. We further make use of normalization because it helps to deflate mutual information on finite samples, bounding the output values in $[0,1]$ \cite{Romano2014}.
+
+\subsection{Correlation Based Measures} \label{sec:corrbased}
+
+When the user is only interested in linear dependencies between two variables $X$ and $Y$ on a data set $\mathcal{S}_n = \{ (x,y)_k \}_{k=0\dots n-1}$,
+the sample Pearson's correlation coefficient $r$ is a powerful dependency measure:
+\begin{equation}
+r(X,Y) \triangleq \frac{ \textup{Cov}(X,Y)}{\sqrt{\textup{Var}(X) \cdot \textup{Var}(Y) }} = \frac{ \sum_{k=0}^{n-1} (x_k - \bar{x})(y_k - \bar{y})}{\sqrt{ \sum_{k=0}^{n-1} (x_k - \bar{x})^2 \sum_{k=0}^{n-1} (y_k - \bar{y})^2}}
+\end{equation}
+with $ \bar{x} = \frac{1}{n}\sum_{k=0}^{n-1} x_k$ and $\bar{y} = \frac{1}{n}\sum_{k=0}^{n-1} y_k$. A value of 1 for $r$ corresponds to perfect positive linear correlation between $X$ and $Y$. Instead, the value -1 for $r$ corresponds to perfect negative correlation. Therefore, the amount of linear dependency between $X$ and $Y$ can me measured with either $|r|$ or $r^2$.
+
+
+Nonetheless, the Pearson's correlation coefficient is limited to the identification of linear dependency between two single variables $X$ and $Y$. In order to handle non-linear dependencies between two sets of variables, one can use the distance correlatoin (dCorr) proposed in \cite{Szekely2009}. The dependency measure dCorr($\mathbf{X},\mathbf{Y}$) between the two sets of variables $\mathbf{X}$ and $\mathbf{Y}$ can be estimated on a data set $\mathcal{S}_n = \{ ( \mathbf{x},\mathbf{y})_k \}_{ k=0 \dots n-1}$ making use of the Euclidean distance $|| \cdot ||$ between pairs of points. Let $a_{jk}$ and $b_{jk}$ be the pairwise Euclidean distance between all points according to the variables in $\mathbf{X}$ and $\mathbf{Y}$ respectively:
+\begin{align*}
+a_{jk} &= || \mathbf{x}_j - \mathbf{x}_k|| \text{ \quad with \quad} j,k=0,\dots,n-1 \\
+b_{jk} &= || \mathbf{y}_j - \mathbf{y}_k|| \text{ \quad with \quad} j,k=0,\dots,n-1 
+\end{align*}
+Let $A_{jk}$ and $B_{jk}$ be the doubly centered distances defined as follows:
+\begin{align*}
+A_{jk} &= a_{jk} - \bar{a}_{j\bullet} - \bar{a}_{\bullet k} + \bar{a}_{\bullet \bullet} \\ 
+B_{jk} &= b_{jk} - \bar{b}_{j\bullet} - \bar{b}_{\bullet k} + \bar{b}_{\bullet \bullet} 
+\end{align*}
+where $ \bar{a}_{j \bullet} = \frac{1}{n}\sum_{k=0}^{n-1} a_{jk}$, $ \bar{a}_{\bullet k} = \frac{1}{n}\sum_{j=0}^{n-1} a_{jk}$, and $ \bar{a}_{\bullet \bullet} = \frac{1}{n^2} \sum_{j=0}^{n-1} \sum_{k=0}^{n-1} a_{jk}$. The sample distance covariance (dCov) and the sample distance variance (dVar) on the data set $\mathcal{S}_n$ are defined as:
+\begin{align*}
+\mbox{dCov}(\mathbf{X},\mathbf{Y}) &\triangleq \sqrt{\frac{1}{n^2} \sum_{j=0}^{n-1} \sum_{k=0}^{n-1} A_{jk}  B_{jk}} \\
+\mbox{dVar}(\mathbf{X}) &\triangleq \mbox{dCov}(\mathbf{X},\mathbf{X}) = \sqrt{\frac{1}{n^2} \sum_{j=0}^{n-1} \sum_{k=0}^{n-1} A_{jk}^2}
+\end{align*}
+Finally, the distance correlation (dCorr) is defined similarly as Pearson's correlation but making use of dCov and dVar:
+\begin{equation}
+\mbox{dCorr}(\mathbf{X},\mathbf{Y}) \triangleq \frac{\textup{dCov}(\mathbf{X},\mathbf{Y})}{\sqrt{\textup{dVar}(\mathbf{X}) \cdot \textup{dVar}(\mathbf{Y})}}
+\end{equation}
+
+More recently, random projections have been employed to achieve speed improvements \citep{Lopez-paz2013}, yielding the Randomized Dependency Coefficient (RDC). RDC might be seen as a randomized way to identify the maximal correlation between sets of variables. Its computation on a data set $\mathcal{S}_n$ is sketched as follows:
+\begin{enumerate}
+\item \textbf{Copula transformation:} Each set of variables $\mathbf{X}$ and $\mathbf{Y}$ is transformed using the empirical copulas $P(\mathbf{X})$ and $P(\mathbf{Y})$ to obtain uniform marginal distributions respectively. This allows RDC to be invariant to the marginal distribution of $\mathbf{X}$ and $\mathbf{Y}$;
+\item \textbf{Random projections:} Each $P(\mathbf{X})$ and $P(\mathbf{Y})$ is independently projected on a space of $k$ dimensions making using of non-linear functions $\mathbf{\Phi}$ parametrized with $s$:
+$
+\mathbf{\Phi}\big( P(\mathbf{X});k,s \big) \quad \mathbf{\Phi}\big( P(\mathbf{Y});k,s \big)
+$;
+\item \textbf{Computation of Canonical Correlation:} RDC is obtained using Canonical Correlation Analysis (CCA) to identify the linear combination of the random projections obtained above that has maximal correlation. Let $\boldsymbol{\alpha}$ and $\boldsymbol{\beta}$ be basis vectors, then the Randomized Dependency Coefficient (RDC) is defined as follows:
+\begin{equation}
+\mbox{RDC}(\mathbf{X},\mathbf{Y}) \triangleq \max_{\boldsymbol{\alpha},\boldsymbol{\beta}} \Big( \boldsymbol{\alpha}^T \mathbf{\Phi}\big( P(\mathbf{X}) \big), \boldsymbol{\beta}^T \mathbf{\Phi}\big( P(\mathbf{Y}) \big)\Big)
+\end{equation}
+\end{enumerate}
+RDC can also be seen as an extension of the Alternative Conditional Expectation (ACE). Nonetheless, ACE identifies the best non-linear transformation of the input variables without making use of randomization. Moreover, ACE is only applicable to single variables $X$ and $Y$. More details about ACE can be found in \cite{Breiman1985}.
+
+\subsection{Kernel Based Measures}
+
+The dependency between two sets of variables can also be measured employing the joint distribution of the studied variables under kernel embeddings. The Hilbert-Schmidt Independence Criterion (HSIC) \citep{Gretton2005} is an example of such measures. Given two unique positive definite kernels $k(\cdot)$ and $l(\cdot)$ it is possible to estimate HSIC($\mathbf{X},\mathbf{Y}$) on a data set $\mathcal{S}_n$ as follows:
+\begin{equation}
+\mbox{HSIC}(\mathbf{X},\mathbf{Y}) \triangleq \frac{1}{(n-1)^2} \mathrm{tr}(KHLH)
+\end{equation}
+where $K_{ij} = k(\mathbf{x}_i,\mathbf{x}_j)$, $L_{ij} = l(\mathbf{y}_i,\mathbf{y}_j)$, and $H_{ij} = \delta_{ij} - \frac{1}{n^2}$ with $\delta$ Dirac function and $i,j=0,\dots,n-1$. 
+
+A detailed analysis and discussion about HSIC is available in \cite{Gretton2012}. Moreover, HSIC was also extended recently to be invariant to the marginal distribution of $\mathbf{X}$ and $\mathbf{Y}$ employing copulas \citep{Poczos2012}.
+
+\subsection{New Measures Based on Information Theory and Discretization}
+
+More recently, new measures based on information theory and variable discretization, such as the Maximal Information Coefficient (MIC) presented in \cite{Reshef2011} and the Mutual Information Dimension (MID) \citep{Sugiyama2013}, have been proposed. MIC was proposed as a dependency measure for functional relationships between $X$ and $Y$, performing discretization via grids over the joint distribution $(X,Y)$. MIC satisfies a useful property called equitability, which allows it to act as a proxy for the coefficient of determination $R^2$ of a functional relationship \citep{Reshef2015TIC}. Given a data sample $\mathcal{S}_n$ from the numerical variables $X$ and $Y$, MIC is the maximal normalized MI computed across all the possible $r \times c$ grids to estimate the bivariate frequency distribution of $X$ and $Y$. Each $r \times c$ discretizes the scatter plot of $X$ and $Y$ in $r\cdot c$ bins to compute their frequency distribution in a contingency table:
+\begin{equation}
+\mbox{MIC}(X,Y) \triangleq \max_{r \times c \mbox{ \tiny grids $G$ with } r \cdot c \leq n^{\alpha}} \frac{\mbox{MI}\big((X,Y)|G\big)}{ \log_2{ \min{ \{ r,c\} }} } 
+\end{equation} 
+where $\alpha$ is a parameter often set to $0.6$~\citep{Reshef2011}. Figure \ref{fig:mic4fun} shows the average value of MIC for different functional relationships and different percentages of white noise on data sets $\mathcal{S}_n$ of $n = 60$ points. At a given percentage $p$ of white noise, $p \times n$ points are randomly scattered uniformly in the domain of $X$ and $Y$. MIC can be used as a proxy for the amount of noise: it returns the value 1 for functional relationships.
+\begin{figure}[h]
+\centering
+\includegraphics[scale=.6]{figures/Fig2_Noise_MIClin}
+\includegraphics[scale=.6]{figures/Fig2_Noise_MICqua}
+\includegraphics[scale=.6]{figures/Fig2_Noise_MICcub}
+\includegraphics[scale=.6]{figures/Fig2_Noise_MIC4}
+\caption{Equitability of MIC at the variation of the percentage of white noise. MIC gives similar scores to equally noisy relationships. If the relationship is functional and noiseless MIC is equal to 1.} \label{fig:mic4fun}
+\end{figure}
+
+MID is instead based on information dimension theory and discretization. The information dimension of a numerical variable $X$ is defined as follows:
+\[
+\mbox{dim}X = \lim_{k \rightarrow + \infty} \frac{H(X|G(k))}{k}
+\]
+where $G(k)$ is a grid which discretizes $X$ in $k$ equal-width bins. Similarly, the information dimension of the variables $X$ and $Y$ is defined as:
+\[
+\mbox{dim}XY = \lim_{k \rightarrow + \infty} \frac{H\big( (X,Y)|G(k)\big)}{k}
+\]
+where $G(k)$ discretizes both $X$ and $Y$ with equal-width binning. MID between two variables $X$ and $Y$ is defined as follows:
+\begin{equation}
+\mbox{MID}(X,Y) \triangleq \mbox{dim}X + \mbox{dim}Y  - \mbox{dim}XY 
+\end{equation}
+Prominent features of MID include its efficiency and the ability to characterize multi-functional relationships with a score of 1. 
+
+\cite{Reshef2015TIC} also proposed two new statistics based on grids in this recent preprint: MIC$_e$ which is an improved estimator of the population value of MIC; and the Total Information Coefficient (TIC$_e$) to achieve high power when testing for independence between variables. In a thorough study, \cite{Reshef2015empirical} compared many different dependency measures between variables and demonstrated that MIC$_e$ and TIC$_e$ are very competitive when targeting high equitability and high power respectively. MIC$_e$ optimizes the normalized mutual information over all grid cardinalities and grid cut-offs. TIC$_e$ still optimizes the possible cut-offs for a grid, but returns the average value over grid cardinalities instead. Independently, another statistic based on grids and normalized mutual information has been suggested in the attempt to maximize power: the Generalized Mean Information Coefficient (GMIC) \citep{Luedtke2013}.
+%Nonetheless, only TIC$_e$ has been shown to be asymptotically consistent and to be the state-of-the-art to achieve power when testing for independence.
+
+%However, the power of MIC in the presence of noise can be low \cite{Simon2014}. In order to maintain equitability and improve performance in noisy scenarios, the generalized mean information coefficient (GMIC) \cite{Luedtke2013} has been suggested. MIC optimizes the normalized mutual information over all grid cardinalities and grid cut-offs. GMIC still optimizes the possible cut-offs for a grid, but returns the average value over grid cardinalities instead. In a very recent preprint \cite{Reshef2015TIC}, the total information coefficient (TIC) has been proposed as a variant of MIC to achieve more power. This turns out to be equal to GMIC up to a multiplicative constant, therefore we analyze only GMIC in the rest of the paper. MIC style optimization leads to increased variance and high time complexity unless heuristics are employed. Furthermore, all the above mentioned measures can only be used to quantify the dependency between two variables and no extension to sets of variables is available in literature.
+
+\section{Applications of Dependency Measures} \label{sec:app}
+
+The dependency measures discussed above are fundamental in machine learning and data mining. Hence there exist a large number of applications. In this section we describe in detail some common applications for dependency measures and provide examples to gain intuition.
+
+\subsection{Feature Selection and Decision Tree Induction}
+
+Dependency measures are often used for feature selection in order to make classification techniques more effective. Given a data set $\mathcal{S}_n = \{ (\mathbf{x},y)_k \}_{k=0\dots n-1}$ of $n$ records from $\mathbf{X}$ and $Y$, classification techniques aim at labeling records of unknown class $Y$ making use of their features $\mathbf{X}$. They basically map the features $\mathbf{X}$ into the class attribute $Y$ (target variable), the object of the classification. The relationship between $\mathbf{X}$ and $Y$ is learned using $\mathcal{S}_n$. Dependency measures between the variables $\mathbf{X}$ and the target variable $Y$ are often used for feature selection in classification and regression tasks \citep{Guyon2003}.
+ 
+Dependency measures are also fundamental in decision trees which are very interpretable classification techniques. Indeed, each internal node in a decision tree is associated to a specific test on a variable $X \in \mathbf{X}$ and each edge to child nodes is labeled with its different test results. Each leaf is labeled with a class from $Y$. In Figure \ref{fig:dt} shows a toy example of a data set where the target variable $Y = \texttt{Risk}$. This toy example shows a data set that can be used to predict risk levels for a car insurance company. The figure also shows an example of decision tree induced on this data set. 
+\begin{figure}[h]
+\centering
+\begin{minipage}{0.45\textwidth}
+\begin{tabular}{|cccc|}
+\hline
+\texttt{ID} & \texttt{Age} & \texttt{Type of car} & \texttt{Risk} \\
+\hline
+1 & 23 & Sport car & A \\
+2 & 18 & Sport car & A \\
+3 & 43 & Sport car & A \\
+4 & 68 & Sedan & B \\
+5 & 32 & Pickup & B \\
+6 & 20 & Sedan & A \\
+\hline
+\end{tabular}
+\end{minipage}
+\begin{minipage}{0.53\textwidth}
+\includegraphics[scale=0.6]{figures/tree/dt} 
+\end{minipage}
+\caption{Example of decision tree induced on a data set $\mathcal{S}_n$ with $n = 6$.}\label{fig:dt}
+\end{figure}
+
+A decision tree induction algorithm proceeds by hierarchically partitioning a training data set according to the variables $\mathbf{X}$ in order to obtain subsets which are as pure as possible to the given target class $Y$. The best partitioning is defined as a \emph{split} and it is selected according to a dependency measure computed on a contingency table. Given a categorical variable $X$ with $r$ values, some decision tree induction algorithms generate split of cardinality $r$. C4.5 \citep{Quinlan1993} is an example of such algorithms. Other algorithms such as CART \citep{cart84} generate all the possible $2^r-2$ binary splits for a variable with $r$ different categories. Instead, a numerical variable $X$ always induces binary splits based on cut-offs $x$ such that records with $X \leq x$ go on the left child node and records with $X > x$ go on the right one, as shown in Figure \ref{fig:splitTypes}:
+\begin{figure}[h]
+\centering
+\subfloat[Split induced by a categorical variable.]{
+	\includegraphics[scale=1.65]{figures/tree/nominal} \label{fig:cat}
+}\qquad
+\subfloat[Split induced by a numerical variable.]{
+	\includegraphics[scale=1.6]{figures/tree/continuous} \label{fig:cont}
+}\qquad
+\caption{Splits induced by categorical and numerical variables $X$ in C4.5 \citep{Quinlan1993}.}
+\label{fig:splitTypes}
+\end{figure}
+
+Each of the splits described above can be computed on a contingency table $\mathcal{M}$ using a dependency measure $\mathcal{D}$ for categorical variables as described in Section \ref{sec:catdep}. C4.5 induces a unique split according a categorical variable but still identifies the best split for a numerical variable by trying all possible cut-offs. The approach used by C4.5 is sketched in Algorithm \ref{alg:bestSplit}. $\proc{FindBestSplit}(\mathbf{X},Y,\mathcal{D})$ identifies the best split given a set of variables $\mathbf{X}$, the target variable $Y$, and the dependency measure $\mathcal{D}$:
+\begin{algorithm}[ht]
+\caption{Algorithm to find the best split according to a given dependency measure $\mathcal{D}$.} \label{alg:bestSplit}
+\begin{codebox}
+\Procname{$\proc{FindBestSplit}(\mathbf{X},Y,\mathcal{D})$}
+\li	$\id{CandidateTables} \gets \emptyset$
+\li \Foreach $ X \in \mathbf{X}$ \Do
+\li 	\If $X \ \text{is categorical}$ \Then
+\li 	$\id{CandidateTables} \gets \id{CandidateTables} \cup \mathcal{M}$
+%\li		$\text{where} \ S_i = \{r \in S: r(F) = f_i\}$ 
+		\End
+\li		\If $X \ \text{is numerical}$ \Then
+%\li 	$\id{best} \gets -\infty$
+\li 		\Foreach $ \mathcal{M} \text{ with 2 rows associated to } X \leq x \text{ and } X > x$ \Do
+%\zi \With \ $S_1 = \{ r \in S: r(F) \leq x\},\ S_2 = S  \setminus S_1$ 
+\li     		\If $best < \mathcal{D}(\mathcal{M})$ \Then \label{line:contatt}
+\li				$\mathcal{M}^{\star} \gets \mathcal{M}$ 	
+				\End
+			\End
+\li			$\id{CandidateTables} \gets \id{CandidateTables} \cup \mathcal{M}^{\star}$
+		\End
+	\End
+%\li	$\id{bestVal} \gets -\infty$
+\li \Foreach $ \mathcal{M} \in \id{CandidateTables}$ \Do
+\li 	\If $best < \mathcal{D}(\mathcal{M})$ \Then \label{line:allatt}
+\li			$\mathcal{M}^{\star} \gets \mathcal{M}$ 	
+		\End
+	\End
+\li \Return $\mathcal{M}^{\star}$
+\end{codebox}
+\end{algorithm}
+
+\subsection{Clustering Comparisons}
+
+Dependency measures are extensively used in the clustering community. Indeed, two clusterings on the same data set $\mathcal{S}_n$ can be seen as two categorical variables $X$ and $Y$. All the measures discussed in Section \ref{sec:catdep} can be used for comparing clusterings. In Figure \ref{fig:exclu} we show a data set $\mathcal{S}_n$ with $n = 15$ data points in a two dimensional space. The clustering $U$ labels each data point with colors: red and blue. The clustering $V$ labels each data point with geometric figures: stars and circles. The overlapping between the two clusterings is shown by the associated contingency table $\mathcal{M}$. Therefore, the amount of dependency between $U$ and $V$ can be assessed with a dependency measure $\mathcal{D}$ between categorical variables.
+\begin{figure}
+
+\begin{minipage}{.5\textwidth}
+\begin{center}
+\includegraphics[scale=.8]{figures/clusters}
+\end{center}
+\end{minipage}
+\begin{minipage}{.25\textwidth}
+\begin{flushright}
+\small
+\begin{tabular}{rr|r|cc|}
+\multicolumn{3}{c}{} & \multicolumn{2}{c}{  $V$     }\\
+\multicolumn{3}{c}{ } & {\color{red} red} & \multicolumn{1}{c}{\color{blue} blue} \\
+\cline{4-5}
+\multicolumn{3}{c|}{ } & 6 & 9 \\
+\cline{3-5}
+\multirow{2}{*}{  $U$   }
+& \includegraphics[scale=.8]{figures/star}  & 8 & 4 & 4 \\
+& \includegraphics[scale=.8]{figures/circle} & 7 & 2  & 5 \\
+\cline{3-5}
+\end{tabular}
+\end{flushright}
+\end{minipage}
+\caption{Example of clustering comparisons on a data set of $n = 15$ points. The contingency table provides graphical intuition about the overlapping between the two clusterings $U$ and $V$.} \label{fig:exclu}
+\end{figure}
+
+Dependency measures are extensively used in the clustering community: for external clustering validation \citep{Strehl2003}, including soft clustering validation \citep{Lei2014fuzzy}; for generating  alternative or multi-view clusterings \citep{Muller2013,Dang2015}; to explore the clustering space using results from the Meta-Clustering algorithm \citep{Caruana2006, Lei2014}.
+
+\subsection{Exploratory Analysis}
+
+Dependency measures between variables are also used for exploratory analysis in machine learning and data mining. There exist applications on inference of biological networks \citep{Reshef2011,Villaverde2013} and analysis of neural time-series data \citep{Cohen2014}. Nonetheless, dependency measure can really be used to explore the dependency between any phenomena of interest for which data can be collected. For example, the correlation between Google search keywords can be identified using a dependency measure\footnote{\url{https://www.google.com/trends/correlate}}. In these scenarios, data on two phenomena of interested is collected in a data set $\mathcal{S}_n$ and a dependency measure is employed to infer the dependency between them. For example, the amount of dependency between two genes $X$ and $Y$ can be inferred computing a dependency measure between the time series of value sampled at the same time from $X$ and from $Y$. Figure \ref{fig:genex} shows a toy example about the data set $\mathcal{S}_n$ related to the two time-series $X$ and $Y$. Being numerical variables, a dependency measure from Section \ref{sec:numdep} is better suited for this task.
+\begin{figure}[H]
+\begin{minipage}{0.55\textwidth}
+\centering
+\includegraphics[scale=.7]{figures/InteractionExample}
+\end{minipage}
+\begin{minipage}{0.45\textwidth}
+\small 
+\quad \quad
+\begin{tabular}{|c|cc|}
+\hline
+time & $X$ & $Y$  \\
+\hline
+$t_1$ & 20.4400  &   19.7450 \\
+ $t_2$ &  19.0750   &  20.3300  \\
+ $t_3$ &  20.0650   &   20.1700   \\
+ $\vdots$  & $\vdots$ & $\vdots$\\
+\hline
+\end{tabular}
+\\[.5cm]
+\includegraphics[scale=.55]{figures/GeneExample}
+\end{minipage}
+\caption{Example of application of dependency measures for exploratory analysis in machine learning. The dependency between two genes $X$ and $Y$ might be inferred by the amount of computed dependency between their time series. The amount of dependency can be computed using a dependency measure $\mathcal{D}(X,Y)$.} \label{fig:genex}
+\end{figure}
+
+\vfill
