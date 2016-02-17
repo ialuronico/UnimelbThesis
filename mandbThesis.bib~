@@ -1,7 +1,0 @@
-@Book{example,
-  Title                    = {Example Title},
-  Author                   = {Name, Surname},
-  Publisher                = {Publisher},
-  Year                     = {2016}
-}
-
